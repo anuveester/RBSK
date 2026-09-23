@@ -1,15 +1,17 @@
 # Phase 1.3 — Implementation Report
 
-**Status: complete.** Reference/configuration seed data + minimal read layer.
-Plan: [25_PHASE_1_3_PLAN.md](25_PHASE_1_3_PLAN.md). Phase 1.4 has **not** been
-started.
+**Status: CLOSED / APPROVED.** Reference/configuration seed data + minimal
+read layer. Plan: [25_PHASE_1_3_PLAN.md](25_PHASE_1_3_PLAN.md). Phase 1.4 has
+**not** been started.
 
 | | |
 |---|---|
 | Date | 2026-09-23 |
 | Decisions authorizing this phase | Explicit user instruction (this session): Disease Master = 37 rows, code 30 seeded as catch-all, FY 2025-26 only, no staff phone numbers |
 | Phase 1.2 commit (baseline) | `6dabedc` |
-| Phase 1.3 commit(s) | recorded in §14 below, after the commit is actually made |
+| Phase 1.3 commit(s) | `30d01ff` (implementation), `397ce88` (plan/report/Master Plan), `8b357f8` (hash self-reference fix) |
+| Independent verification | Separate verification pass, same session: re-derived every factual claim from source (Disease Master field-by-field, referral routing, FY, staff, schema/dependency diff, fresh test/analyze/build runs, fresh security scan). **Result: PASS, zero defects found, zero fixes required.** |
+| Formal approval | Explicit user approval, following the independent verification pass. **Phase 1.3 is closed.** |
 
 ## Inspection performed before implementation
 
@@ -281,5 +283,12 @@ Claude's own judgment — recorded as such in §17.
 
 ## T. Commit hash
 
-Recorded in the final message after the commit is actually created — not
-fabricated here in advance.
+`30d01ff` (implementation), `397ce88` (plan/report/Master Plan update),
+`8b357f8` (hash self-reference fix) — see also the header table above.
+
+## U. Formal closure
+
+Approved and closed by explicit user instruction, after an independent
+verification pass found zero defects. Not declared closed unilaterally by
+Claude at any point before that approval — consistent with how Phase 1.1 and
+Phase 1.2 were each closed.

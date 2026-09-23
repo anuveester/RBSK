@@ -17,25 +17,20 @@ block, or material revision — not only at project end.** See §13.
 ## 0. Current Status
 
 ```
-CURRENT PHASE:          Phase 1.3 — Reference/Configuration Seed + Read Layer
-PHASE STATUS:           IMPLEMENTATION COMPLETE — all quality gates passed
-                         (85/85 tests, analyze clean, debug APK builds,
-                         security/PII scan clean, zero schema/dependency
-                         diff since Phase 1.2) — awaiting your review to
-                         formally CLOSE, per the same two-step pattern used
-                         for every prior phase
-LAST COMPLETED PHASE:   Phase 1.2 (approved & closed) + a post-approval
-                         documentation-correction commit (also approved & closed)
-CURRENT TASK:           None — Phase 1.3 report delivered
-                         (docs/26_PHASE_1_3_REPORT.md); waiting on your
-                         approval before Phase 1.4 planning begins
-NEXT APPROVAL REQUIRED: Your review/close of Phase 1.3 (docs/26). All 4
-                         decisions that previously blocked this phase were
-                         resolved by explicit instruction this session — see
-                         §7 and §10 resolved items R7-R8 (plus the staff-
-                         phone rule, established Phase 1.2)
+CURRENT PHASE:          Phase 1.4 — not yet started (planning has not begun)
+PHASE STATUS:           Phase 1.3 CLOSED / APPROVED. Phase 1.4 awaits a
+                         written plan (matching the docs/22, docs/25
+                         pattern) before any implementation begins.
+LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
+                         Layer. Implementation complete, independently
+                         verified (PASS, no defects, no fixes required),
+                         and formally APPROVED/CLOSED by explicit user
+                         instruction.
+CURRENT TASK:           None — awaiting direction to begin Phase 1.4
+                         planning
+NEXT APPROVAL REQUIRED: A written Phase 1.4 plan, once requested
 BLOCKERS:               None
-LAST UPDATED:           2026-09-23 (Phase 1.3 implementation)
+LAST UPDATED:           2026-09-23 (Phase 1.3 formal closure)
 ```
 
 ---
@@ -52,7 +47,7 @@ LAST UPDATED:           2026-09-23 (Phase 1.3 implementation)
 | Primary users | RBSK Medical Officers and field team members |
 | Authorized user count | ~8–10 (single team, "Team-B", confirmed from source Micro Plan) |
 | Current technology stack | Flutter 3.47.2 · Dart 3.13.2 · Riverpod · go_router · Drift (SQLite) · `sqlite3` + SQLite3MultipleCiphers encryption |
-| Current project status | Foundation phases complete (skeleton + encrypted schema + seed data/read layer); no feature UI built yet; Phase 1.3 implementation complete, awaiting review |
+| Current project status | Foundation phases complete (skeleton + encrypted schema + seed data/read layer, Phases 1.1–1.3 all approved & closed); no feature UI built yet; Phase 1.4 not yet planned |
 | Git | 8 commits on `main` (as of Phase 1.3 implementation), working tree otherwise clean |
 
 ---
@@ -250,7 +245,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.1** | DONE, approved | Flutter project skeleton — identity, folder structure, theme, routing, placeholder screen | 2026-09-22/23 | `9e90c73`, `9d378a0` | docs/22, 23 |
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
-| **Phase 1.3** | **IMPLEMENTATION COMPLETE, awaiting review/close** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer | 2026-09-23 | `30d01ff` | docs/25, docs/26 |
+| **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
 | Phase 1.4 | PLANNED — NOT YET APPROVED | Auth + RBAC scaffolding, secure token storage, role-gated navigation shell | — | — | docs/21 §10 (one-line scope only) |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
@@ -472,7 +467,7 @@ This is not optional, and is not deferred to "the end of the project."
 
 ---
 
-## 15. Current Phase Detail — Phase 1.3
+## 15. Phase Detail — Phase 1.3 (CLOSED)
 
 **Full plan:** [25_PHASE_1_3_PLAN.md](25_PHASE_1_3_PLAN.md). **Full report:**
 [26_PHASE_1_3_REPORT.md](26_PHASE_1_3_REPORT.md). Summary only here; do not
@@ -490,11 +485,16 @@ treat this section as a substitute for either document.
   a minimal repository/entity read layer, all under commit `30d01ff`.
 - **Not in scope, not built:** any UI, `users`/auth, Micro Plan import,
   `awc_checklist_items` seeding — unchanged from the plan.
-- **Status:** implementation complete, all quality gates passed (§0 above,
-  docs/26 §13). **Awaiting your review to formally close**, consistent with
-  how Phase 1.1 and Phase 1.2 were each closed by an explicit user approval
-  message after Claude's report — this document does not declare that
-  approval on your behalf.
+- **Independent verification:** a separate verification pass re-derived every
+  factual claim from source rather than trusting the implementation report —
+  full field-by-field Disease Master comparison, fresh re-run of
+  `flutter analyze`/`flutter test`/APK build, fresh schema/dependency diff
+  against Phase 1.2, fresh security/PII scan. Result: **PASS, zero defects,
+  zero fixes required.**
+- **Status: CLOSED / APPROVED.** Formally approved by explicit user
+  instruction following the independent verification pass — the same
+  two-step pattern (Claude implements + reports, user reviews + approves)
+  used for every phase so far.
 
 ---
 
