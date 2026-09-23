@@ -1,0 +1,11 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # Frozen schema doc (docs/04_DATABASE_ARCHITECTURE.md §2) states:
+          # "SQLite/Drift mirrors this with TEXT UUIDs, INTEGER booleans, and TEXT
+          # timestamps." Booleans and UUID-as-TEXT are Drift defaults already;
+          # this option makes DateTime columns match the TEXT-timestamp convention
+          # instead of Drift's own default (INTEGER unix millis).
+          store_date_time_values_as_text: true

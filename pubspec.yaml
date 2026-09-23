@@ -10,11 +10,11 @@ version: 1.0.0+1
 environment:
   sdk: ^3.13.2
 
-# Phase 1.1 dependency policy (docs/22_PHASE_1_1_PLAN.md §3.3):
-# ONLY packages actually used by the current phase are declared. Drift, Supabase,
-# secure storage, camera, PDF/Excel, sharing, connectivity and background work each
-# arrive with the phase that uses them, so no unused dependency can silently affect
-# build size, permissions or Gradle configuration.
+# Dependency policy: only packages the current phase actually uses are declared
+# (docs/22_PHASE_1_1_PLAN.md §3.3). Phase 1.2 adds the local database layer only —
+# Supabase, camera, PDF/Excel, sharing, connectivity and background work still wait
+# for the phase that needs them. See docs/24_PHASE_1_2_REPORT.md for why each
+# package below was added.
 dependencies:
   flutter:
     sdk: flutter
@@ -25,6 +25,21 @@ dependencies:
   # Declarative routing foundation.
   go_router: ^17.2.1
 
+  # --- Phase 1.2: local encrypted database ---
+  # Type-safe SQL / query builder / migrations over SQLite.
+  drift: ^2.35.0
+  # Bundles SQLite natively; swapped to the SQLite3MultipleCiphers build via the
+  # `hooks.user_defines` block below, which adds SQLCipher-compatible encryption
+  # (PRAGMA key). Replaces the now end-of-life `sqlcipher_flutter_libs` package —
+  # see docs/24_PHASE_1_2_REPORT.md.
+  sqlite3: ^3.6.0
+  # Locates the app's private documents directory for the database file.
+  path_provider: ^2.1.6
+  path: ^1.9.1
+  # Generates and stores the database passphrase in the Android Keystore (never
+  # in source, never in plain SharedPreferences).
+  flutter_secure_storage: ^11.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -32,5 +47,18 @@ dev_dependencies:
   # Lint gate — rules configured in analysis_options.yaml.
   flutter_lints: ^6.0.0
 
+  # Drift code generation.
+  drift_dev: ^2.35.0
+  build_runner: ^2.16.1
+
 flutter:
   uses-material-design: true
+
+# Selects the SQLite build that sqlite3 bundles natively. sqlite3mc (SQLite3
+# Multiple Ciphers) adds SQLCipher-compatible encryption support via `PRAGMA key`.
+# This replaces the old sqlcipher_flutter_libs package entirely — no extra native
+# dependency is needed. See docs/24_PHASE_1_2_REPORT.md for verification.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc

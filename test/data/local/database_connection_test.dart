@@ -1,0 +1,192 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:referredline/data/local/app_database.dart';
+import 'package:referredline/data/local/database_connection.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite3;
+
+/// In-memory stand-in for Android Keystore-backed storage, so
+/// [DatabaseKeyManager] is testable without a platform channel.
+class _InMemorySecureKeyStore implements SecureKeyStore {
+  final Map<String, String> _values = {};
+
+  @override
+  Future<String?> read(String key) async => _values[key];
+
+  @override
+  Future<void> write(String key, String value) async {
+    _values[key] = value;
+  }
+}
+
+void main() {
+  group('generatePassphrase', () {
+    test('produces 256 bits (64 hex characters)', () {
+      expect(generatePassphrase().length, 64);
+      expect(RegExp(r'^[0-9a-f]{64}$').hasMatch(generatePassphrase()), isTrue);
+    });
+
+    test('is not deterministic — repeated calls differ', () {
+      final values = List.generate(20, (_) => generatePassphrase());
+      expect(values.toSet().length, 20, reason: 'no two calls should collide');
+    });
+  });
+
+  group('escapeForSqlLiteral', () {
+    test('doubles embedded single quotes', () {
+      expect(escapeForSqlLiteral("it's"), "it''s");
+    });
+
+    test('leaves a quote-free string untouched', () {
+      expect(escapeForSqlLiteral('abc123'), 'abc123');
+    });
+
+    test(
+      'a malicious value embeds as ONE inert string literal, not '
+      'executable SQL — behavioral proof, not a substring check',
+      () {
+        const malicious = "x'; DROP TABLE schools; --";
+        final db = sqlite3.sqlite3.openInMemory();
+        addTearDown(db.close);
+        db.execute('CREATE TABLE schools (id INTEGER)');
+        db.execute('INSERT INTO schools VALUES (1)');
+
+        final escaped = escapeForSqlLiteral(malicious);
+        // If escaping failed, this statement would either throw a syntax
+        // error (unterminated string) or silently execute the DROP TABLE.
+        final result =
+            db.select("SELECT '$escaped' AS value");
+
+        // The table must still exist and the literal must round-trip
+        // byte-for-byte as a single opaque value.
+        expect(result.single['value'], malicious);
+        expect(
+          db.select('SELECT count(*) AS c FROM schools').single['c'],
+          1,
+        );
+      },
+    );
+  });
+
+  group('DatabaseKeyManager', () {
+    test('generates a key on first use and persists it', () async {
+      final store = _InMemorySecureKeyStore();
+      final manager = DatabaseKeyManager(store: store);
+
+      final key = await manager.getOrCreateKey();
+
+      expect(key, isNotEmpty);
+      expect(await store.read('rbsk_db_encryption_key_v1'), key);
+    });
+
+    test('returns the SAME key on every subsequent call', () async {
+      final store = _InMemorySecureKeyStore();
+      final manager = DatabaseKeyManager(store: store);
+
+      final first = await manager.getOrCreateKey();
+      final second = await manager.getOrCreateKey();
+      final third = await manager.getOrCreateKey();
+
+      expect(second, first);
+      expect(third, first);
+    });
+
+    test('two independent stores get two different keys', () async {
+      final managerA = DatabaseKeyManager(store: _InMemorySecureKeyStore());
+      final managerB = DatabaseKeyManager(store: _InMemorySecureKeyStore());
+
+      expect(await managerA.getOrCreateKey(),
+          isNot(await managerB.getOrCreateKey()));
+    });
+  });
+
+  group('openEncryptedDatabase — real encrypted file on disk', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('rbsk_db_test_');
+    });
+
+    tearDown(() {
+      tempDir.deleteSync(recursive: true);
+    });
+
+    test(
+      'data written with the correct key round-trips after reopening',
+      () async {
+        final store = _InMemorySecureKeyStore();
+
+        final executor1 = await openEncryptedDatabase(
+          keyManager: DatabaseKeyManager(store: store),
+          overrideDirectoryPath: tempDir.path,
+          overrideTempDirectoryPath: tempDir.path,
+        );
+        final db1 = AppDatabase(executor1);
+        await db1.into(db1.financialYears).insert(
+              FinancialYearsCompanion.insert(
+                id: 'fy-1',
+                label: '2025-26',
+                startDate: DateTime.utc(2025, 4, 1),
+                endDate: DateTime.utc(2026, 3, 31),
+              ),
+            );
+        await db1.close();
+
+        // Reopen the SAME file with the SAME (persisted) key.
+        final executor2 = await openEncryptedDatabase(
+          keyManager: DatabaseKeyManager(store: store),
+          overrideDirectoryPath: tempDir.path,
+          overrideTempDirectoryPath: tempDir.path,
+        );
+        final db2 = AppDatabase(executor2);
+        final rows = await db2.select(db2.financialYears).get();
+        await db2.close();
+
+        expect(rows, hasLength(1));
+        expect(rows.single.label, '2025-26');
+      },
+    );
+
+    test(
+      'the same file CANNOT be read back with the wrong key — proves '
+      'encryption is actually active, not a no-op',
+      () async {
+        final correctKeyStore = _InMemorySecureKeyStore();
+        final executor1 = await openEncryptedDatabase(
+          keyManager: DatabaseKeyManager(store: correctKeyStore),
+          overrideDirectoryPath: tempDir.path,
+          overrideTempDirectoryPath: tempDir.path,
+        );
+        final db1 = AppDatabase(executor1);
+        await db1.into(db1.financialYears).insert(
+              FinancialYearsCompanion.insert(
+                id: 'fy-1',
+                label: '2025-26',
+                startDate: DateTime.utc(2025, 4, 1),
+                endDate: DateTime.utc(2026, 3, 31),
+              ),
+            );
+        await db1.close();
+
+        // A different key manager with an UNRELATED store — simulates a
+        // fresh app install / a different device without the real key.
+        final wrongKeyStore = _InMemorySecureKeyStore();
+        final executor2 = await openEncryptedDatabase(
+          keyManager: DatabaseKeyManager(store: wrongKeyStore),
+          overrideDirectoryPath: tempDir.path,
+          overrideTempDirectoryPath: tempDir.path,
+        );
+        final db2 = AppDatabase(executor2);
+
+        // Opening with the wrong key must not yield readable data: the
+        // file's on-disk header itself no longer looks like SQLite to a
+        // connection keyed differently, so schema/table reads fail.
+        await expectLater(
+          db2.select(db2.financialYears).get(),
+          throwsA(isA<Object>()),
+        );
+        await db2.close();
+      },
+    );
+  });
+}
