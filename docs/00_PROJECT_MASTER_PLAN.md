@@ -18,18 +18,21 @@ block, or material revision — not only at project end.** See §13.
 
 ```
 CURRENT PHASE:          Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell
-PHASE STATUS:           IMPLEMENTED — awaiting independent verification.
-                         NOT CLOSED. Commits b797ac3 (implementation),
-                         09f4b0b (UUIDv4 fix). Report: docs/29.
+PHASE STATUS:           IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION
+                         APPROVAL — verification pass completed: PASS WITH
+                         FIXES (2 defects fixed in b11abf2; docs/29 §20).
+                         NOT CLOSED. Commits b797ac3, 09f4b0b, 4fe2e06,
+                         b11abf2.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
                          Layer (APPROVED / CLOSED, unchanged by Phase 1.4).
-CURRENT TASK:           None — Phase 1.4 implementation report delivered
-                         (docs/29_PHASE_1_4_REPORT.md)
-NEXT APPROVAL REQUIRED: Independent verification of Phase 1.4, then your
-                         explicit closure approval
-BLOCKERS:               None for verification. Before real data is entered:
-                         a PIN-recovery path for a sole Admin (§10 item 13)
-LAST UPDATED:           2026-09-23 (Phase 1.4 implementation)
+CURRENT TASK:           None — verification report delivered
+NEXT APPROVAL REQUIRED: Your explicit Phase 1.4 closure approval, including
+                         a decision on the KDF iteration count (§10 #16)
+BLOCKERS:               BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION
+                         USE: no PIN recovery for a sole Admin (§10 #13).
+                         Not a blocker for Phase 1.4 closure (no business
+                         data exists yet).
+LAST UPDATED:           2026-09-23 (Phase 1.4 independent verification)
 ```
 
 ---
@@ -46,7 +49,7 @@ LAST UPDATED:           2026-09-23 (Phase 1.4 implementation)
 | Primary users | RBSK Medical Officers and field team members |
 | Authorized user count | ~8–10 (single team, "Team-B", confirmed from source Micro Plan) |
 | Current technology stack | Flutter 3.47.2 · Dart 3.13.2 · Riverpod · go_router · Drift (SQLite) · `sqlite3` + SQLite3MultipleCiphers encryption · `pointycastle` (PBKDF2 PIN verifier) |
-| Current project status | Phases 1.1–1.3 approved & closed. Phase 1.4 (local PIN auth, RBAC read model, role-gated 5-destination shell) implemented, awaiting independent verification. No business feature UI yet — the five destinations are stubs |
+| Current project status | Phases 1.1–1.3 approved & closed. Phase 1.4 (local PIN auth, RBAC read model, role-gated 5-destination shell) implemented and independently verified (PASS WITH FIXES), awaiting your closure approval. No business feature UI yet — the five destinations are stubs |
 | Git | See `git log`; working tree clean after each phase commit |
 
 ---
@@ -247,7 +250,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| **Phase 1.4** | **IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION (not closed)** | Local PIN authentication (Option A, no schema change), first-run Admin setup, secure session, RBAC read model, route guards, role-gated 5-destination shell. 163/163 tests, analyze clean, APK builds. | 2026-09-23 (implementation) | `30d89f5`, `cbb225b` (planning/analysis), `b797ac3`, `09f4b0b` (code), docs commit (§12) | docs/27, 28, 29 |
+| **Phase 1.4** | **IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION APPROVAL (not closed)** — verification: PASS WITH FIXES | Local PIN authentication (Option A, no schema change), first-run Admin setup, secure session, RBAC read model, route guards, role-gated 5-destination shell. After verification fixes: 165/165 tests, analyze clean, APK builds, schema byte-identical to Phase 1.3. | 2026-09-23 | `30d89f5`, `cbb225b` (planning/analysis), `b797ac3`, `09f4b0b` (code), `4fe2e06` (docs), `b11abf2` (verification fixes), verification docs commit (§12) | docs/27, 28, 29 |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
@@ -376,11 +379,12 @@ Phase 1.1 and reaffirmed at every phase since.
 | 7 | Is Aadhaar collection officially required for AWC screening? | AWC form phase (not yet scheduled) — field stays reserved/unused until answered | Phase 0.6 |
 | 8 | `S.I` register abbreviation — confirmed meaning? | OCR alias table population (not yet scheduled). **Per Phase 0.6 approval condition 2, this must never be assumed or seeded without confirmation.** | Phase 0.6 |
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
-| 13 | **PIN recovery for a sole Admin.** Phase 1.4 has none: a forgotten sole-Admin PIN can only be recovered by clearing app data, which also loses the device-bound database key and therefore local data. Needs a second Admin or an Admin reset flow. | **Must be solved before real data is entered** (not blocking Phase 1.4 closure — no business data exists yet) | Phase 1.4 implementation, 2026-09-23 |
+| 13 | **PIN recovery for a sole Admin.** Phase 1.4 has none. Confirmed at verification: the verifier is written only at setup, and no reset or recover code exists. A forgotten sole-Admin PIN can only be recovered by clearing app data, which deletes the local database and its device-bound key, so all local data is lost. Android backup is not a recovery route either (#18). Needs a second Admin or an Admin reset flow. | **BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE** (not blocking Phase 1.4 closure — no business data exists yet) | Phase 1.4 implementation, 2026-09-23; confirmed at verification |
 | 14 | Session inactivity re-lock — docs/08 recommends PIN re-entry after inactivity on shared devices; the duration is an undecided policy, so none was implemented. | Hardening before rollout | Phase 1.4 implementation, 2026-09-23 |
 | 15 | In-app creation of Medical Officer / Team Member accounts (user management) — no phase number assigned. Until then only the first-run Admin can log in on a device. | Multi-user use on a real device | Phase 1.4 implementation, 2026-09-23 |
-| 16 | On-device benchmark of the PIN KDF (210,000 PBKDF2 iterations; about 1.5 s per derivation in the debug test VM, not representative of a release build on a phone). Confirm or raise the count; no migration is needed to raise it. | Rollout readiness | Phase 1.4 implementation, 2026-09-23 |
+| 16 | **KDF iteration count needs your decision.** The implementation uses 210,000 PBKDF2-HMAC-SHA256 iterations; OWASP's current recommendation (re-checked at verification) is 600,000, so 210,000 is 35% of it. This does not violate the approved "slow KDF, not a fast hash" decision, but its performance justification is unmeasured: no device is available, and the only measurement is about 1.7 s per derivation in the debug test VM, which isn't representative of a phone. Accept it as a documented trade-off, or raise it, ideally after an on-device benchmark. No migration is needed either way. | Your Phase 1.4 closure decision; rollout readiness | Phase 1.4 implementation; decision framing at verification, 2026-09-23 |
 | 17 | Cross-device propagation of user deactivation and role changes | Depends on the unscheduled sync phase (§10 item 6 / docs/07) | Phase 1.4 analysis (docs/28 §6), 2026-09-23 |
+| 18 | **Android backup policy.** `AndroidManifest.xml` sets no backup rules, so Android's default auto-backup applies. Keystore keys are device-bound and not restored, so secure-storage values restored elsewhere (the database key since Phase 1.2, and PIN verifiers and sessions since 1.4) can't be decrypted. Post-restore behavior is unverified. Encrypted local data leaving the device through backup also bears on data residency (#6). Needs a deliberate policy, e.g. disabling backup or defining backup rules. | Before rollout; predates Phase 1.4 | Phase 1.4 verification, 2026-09-23 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -411,7 +415,7 @@ Phase 1.1 and reaffirmed at every phase since.
 | Schema drift (undocumented deviation from the frozen DDL) | Would undermine the "frozen schema" guarantee everything else depends on | Phase 0.6 approval condition 9 requires a controlled, approved amendment for any change; this Master Plan's §13 rules require re-verification against the frozen doc every phase | **Mitigated by process** |
 | Source-plan data quality (visit-date transposition bug, enrolment mismatches — docs/17) | Naive import logic would silently corrupt planned visit dates | Documented derivation rule (sheet + S.No, weekday cross-check) exists and is scoped for Phase 1.6; not yet implemented | **Active, understood, not yet built** |
 | Future government format changes (Job Aid revision, new referral facility types) | Could require new Disease Master rows or referral destinations | Both are versioned/configuration data, not enum values baked into code — additive by design | **Low, mitigated by design** |
-| Sole Admin forgets PIN — no in-app recovery in Phase 1.4 (§10 #13) | Recovering means clearing app data, which loses local data | No business data exists yet; a recovery path must exist before real data entry | **Active, not blocking yet** |
+| Sole Admin forgets PIN — no in-app recovery in Phase 1.4 (§10 #13) | Recovering means clearing app data, which loses local data | No business data exists yet; a recovery path must exist before real data entry | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE** (not blocking Phase 1.4 closure) |
 | Local credential strength — 210,000 PBKDF2 iterations (below OWASP's current 600,000), not yet benchmarked on a device (§10 #16) | Lower resistance if a stored verifier is extracted from a compromised device | Keystore-backed storage, per-credential salt; count embedded per verifier so it can be raised without migration | **Active, documented trade-off** |
 | Real-disk encryption tests are I/O-timing sensitive (observed 0–24 s for one test with no code change) | Spurious timeouts under parallel CPU load | Explicit 2-minute timeout on the two real-disk tests (Phase 1.4, assertions unchanged — docs/29 §12) | **Mitigated** |
 | Two count discrepancies of the same class both found and resolved (24→28; Disease Master 29→37) | Suggests summary/prose sections in early docs are more error-prone than the underlying DDL/source tables | Direct re-enumeration against source, not summary prose, is now the standing practice for any count claim (this document follows it throughout) | **Resolved both instances; process fix applied going forward — watch for a third instance in any future summary figure** |
@@ -436,7 +440,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | Phase 1.4 (analysis) | `cbb225b` | Authentication architecture decision analysis (docs/28) | 2026-09-23 |
 | Phase 1.4 (code) | `b797ac3` | Local PIN auth, RBAC read model, role-gated navigation shell | 2026-09-23 |
 | Phase 1.4 (code) | `09f4b0b` | RFC 4122 v4 UUIDs for runtime-created users | 2026-09-23 |
-| Phase 1.4 (docs) | the commit that adds docs/29 (see `git log`) | Report + final decisions (docs/27 §0) + this Master Plan update | 2026-09-23 |
+| Phase 1.4 (docs) | `4fe2e06` | Report (docs/29) + final decisions (docs/27 §0) + Master Plan update | 2026-09-23 |
+| Phase 1.4 (verification fixes) | `b11abf2` | Fail-open empty-key verifier; clock-skew lockout; doc-comment placement | 2026-09-23 |
+| Phase 1.4 (verification docs) | the commit that adds docs/29 §20 (see `git log`) | Verification results + documentation corrections | 2026-09-23 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -528,8 +534,20 @@ treat this section as a substitute for either document.
 **Analysis:** [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md).
 **Report:** [29_PHASE_1_4_REPORT.md](29_PHASE_1_4_REPORT.md). Summary only here.
 
-- **Status: IMPLEMENTED, awaiting independent verification. NOT closed**:
-  closure requires that verification pass and your explicit approval.
+- **Status: IMPLEMENTED. Independent verification completed — PASS WITH
+  FIXES. NOT closed**: closure requires your explicit approval.
+- **Verification (docs/29 §20):** two genuine defects were found and fixed
+  in `b11abf2`, with regression tests. A verifier with an empty key accepted
+  any PIN (fail-open), and a backward device-clock change stretched the
+  60-second lockout indefinitely. Also independently confirmed:
+  - PBKDF2 parameters, recomputed with Python's OpenSSL-backed hashlib;
+  - the KDF runs off the UI isolate;
+  - the schema is byte-identical to Phase 1.3;
+  - only `pointycastle` was added;
+  - 165/165 tests pass and the APK builds, with no test or credential data
+    packaged.
+  Real-device verification was not performed because no Android device or
+  emulator was available.
 - **Approved decisions:** Option A (verifier in `SecureKeyStore`, keyed by
   `users.id`), no schema change, `AuthRepository` abstraction, 6-digit PIN,
   PBKDF2 (not a fast hash), first-run Admin setup, no cloud auth, no
@@ -539,7 +557,8 @@ treat this section as a substitute for either document.
   persistence with offline restoration, logout, RBAC read model, go_router
   guards, and the 5-destination shell with Admin-only `More` entries. All
   five destinations are stubs.
-- **Quality gates:** 163/163 tests (JSON-reporter count), `flutter analyze`
+- **Quality gates (at verification):** 165/165 tests (JSON-reporter count;
+  163 at implementation, plus 2 regression tests), `flutter analyze`
   clean, debug APK builds with `libsqlite3mc.so` still bundled.
   `schemaVersion` = 1, 28 tables, no migration. Seed files unchanged. The
   security/PII scan is clean.

@@ -1,11 +1,15 @@
 # Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (Implementation Plan)
 
-**Status: IMPLEMENTED (commits `b797ac3`, `09f4b0b`), awaiting independent
-verification. NOT closed.** Closure requires independent verification and
-explicit user approval. Report:
+**Status: IMPLEMENTED (commits `b797ac3`, `09f4b0b`; verification fixes
+`b11abf2`), independent verification completed, awaiting your closure
+approval. NOT closed.** Report:
 [29_PHASE_1_4_REPORT.md](29_PHASE_1_4_REPORT.md). §1–§23 below are the
-original plan; §0 records the final approved decisions, which supersede §7
-and §19.
+original plan. §0 records the final approved decisions, which supersede
+any conflicting text below. Notable conflicts: §7 and §19 (options and open
+questions), plus §9, §15's "seed idempotency" row, §16 item 1 and §20.
+Those four describe a *seeded* bootstrap user (`bootstrap_user_seed_data.dart`,
+`seedBootstrapAdmin()`). **What was built is first-run Admin setup, with no
+seeded user.**
 
 ## 0. Final approved decisions (recorded at implementation approval)
 
@@ -41,7 +45,7 @@ Answers to §19's remaining questions, decided at implementation time:
 | Salt | 16 random bytes (128-bit) per credential from `Random.secure()`. The salt is unique per credential and **not secret**: it is stored inside the verifier string. |
 | Derived key | 32 bytes (256-bit) |
 | Verifier format | `pbkdf2-hmac-sha256$<iterations>$<base64 salt>$<base64 derived key>` |
-| Comparison | Constant-time byte comparison |
+| Comparison | Constant-time byte comparison. A stored verifier whose key is not exactly 32 bytes is rejected (fails closed; added at verification, `b11abf2`). |
 | Storage key | `rbsk_credential_verifier_<users.id>` in `SecureKeyStore` |
 
 **Why `pointycastle`:** checked on pub.dev at implementation time. It is pure
@@ -79,6 +83,12 @@ showing it does not weaken the PIN.
 - An attempt made during the lockout is rejected without checking the PIN,
   and does not extend the lockout.
 - A successful login resets the counter.
+- If the device clock moves backwards during a lockout, the lockout is
+  re-anchored to end one cooldown from the current clock. It can never
+  outlast one cooldown. (This was fixed at verification in `b11abf2`;
+  before the fix, a backward clock change stretched the lockout by the size
+  of the change.) Moving the clock forward ends a lockout early; changing
+  the clock needs an unlocked device, so this is equivalent to waiting.
 - The counter is stored per user in `SecureKeyStore`, not in the database.
 - **There is no permanent lockout.** The expiring cooldown is the recovery
   path, so the only Admin can never be locked out for good.

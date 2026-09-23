@@ -1,8 +1,9 @@
 # Phase 1.4 — Implementation Report
 
-**Status: IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION. NOT CLOSED.**
-Closure requires an independent verification pass and your explicit
-approval, the same as Phases 1.1–1.3.
+**Status: IMPLEMENTED — independent verification completed (PASS WITH
+FIXES, §20). NOT CLOSED.** Closure requires your explicit approval, the same
+as Phases 1.1–1.3. §1–§19 describe the implementation as reported at
+`4fe2e06`; where the verification pass changed something, §20 says so.
 
 | | |
 |---|---|
@@ -218,7 +219,7 @@ folded into the shell as planned in docs/27 §20.
 
 | Package | Version | Why | Checks |
 |---|---|---|---|
-| `pointycastle` | 4.0.0 | PBKDF2 for the PIN verifier | Pure Dart, no native build. SDK constraint `^3.2.0`, compatible with `^3.13.2`. Its dependencies (`collection`, `convert`) were already in the graph, so the lockfile delta is this one package. Published by the Bouncy Castle project (bcgit). |
+| `pointycastle` | 4.0.0 | PBKDF2 for the PIN verifier | Pure Dart, no native build. SDK constraint `^3.2.0`, compatible with `^3.13.2`. Its dependencies (`collection`, `convert`) were already in the graph, so the lockfile delta is this one package. Source repository per its pubspec: `github.com/bcgit/pc-dart`. (An earlier draft said "published by the Bouncy Castle project"; the pub.dev publisher was not verified, so that wording was corrected at verification.) |
 
 Nothing else was added: no `uuid` (§1 uses `Random.secure()`), no `crypto`,
 no Supabase, and no biometrics.
@@ -310,14 +311,15 @@ Run on the staged diff of both code commits:
 ## 16. Git status
 
 Clean after the docs commit. Commits: `b797ac3` (implementation), `09f4b0b`
-(UUIDv4 fix), and the docs commit that adds this report (hash in docs/00
-§12). History was not rewritten and nothing was pushed.
+(UUIDv4 fix), `4fe2e06` (this report and the Master Plan update). History
+was not rewritten and nothing was pushed.
 
 ## 17. Commit hashes
 
 - `b797ac37380d0a0e8044cc75a6fc454282c0068b` — implementation
 - `09f4b0b` — UUIDv4 fix
-- Docs commit — see docs/00 §12
+- `4fe2e06` — implementation report, final decisions, Master Plan update
+- `b11abf2` — verification defect fixes (§20)
 
 ## 18. Remaining limitations and TBDs
 
@@ -364,3 +366,75 @@ Confirmed. Nothing for School/AWC Master, Micro Plan import, visits,
 screening, referral management, treatment, OCR, camera, reports, PDF/Excel,
 notifications, cloud sync, Supabase, user-management CRUD, or biometrics was
 added. The five destinations are empty stubs.
+
+## 20. Independent verification (2026-09-23): PASS WITH FIXES
+
+A separate pass re-derived the claims above from the code, the running
+tests, and external references instead of from this report.
+
+**Defects found and fixed** (commit `b11abf2`; each regression test was
+confirmed to fail on the previous code and pass on the fix):
+
+| # | Defect | Fix |
+|---|---|---|
+| V1 | A stored verifier with an **empty key field accepted any PIN** (an empty expected key compared equal to an empty derivation). This contradicted the documented "malformed verifier fails closed". Triggering it needs write access to secure storage or a very specific corruption, but it was fail-open. | Keys that aren't exactly 32 bytes are rejected. |
+| V2 | The lockout used the wall clock, so **moving the device clock back by 6 h left the user locked for 6 h 01 min**. This contradicted the documented 60-second cooldown and could lock out the sole Admin, for example when network time corrects a fast clock. | A lockout longer than one cooldown is re-anchored to end one cooldown from now. |
+| V3 | `LocalAuthRepository`'s class doc comment was attached to a different declaration. | Moved back (comment only). |
+
+**Results re-derived independently:**
+- **PBKDF2.** Python's OpenSSL-backed `hashlib.pbkdf2_hmac` recomputes a
+  real stored verifier exactly: HMAC-SHA256, 210,000 iterations, 16-byte
+  salt, 32-byte key. Negative controls (209,999 iterations; SHA-1) do not
+  match. Salts were unique across 4 derivations.
+- **Off the UI thread.** While the KDF ran in the background, a 10 ms timer
+  on the calling isolate fired 97 times; running the same KDF on the calling
+  isolate (1.7 s) let it fire once. The UI isolate is genuinely free.
+  `Isolate.run` starts one short-lived isolate per derivation and exits; no
+  isolates persist.
+- **PIN policy.** Every PIN containing a newline, space, sign, decimal point,
+  full-width digits, Arabic-Indic digits, or the wrong length is rejected.
+- **Lockout** persists across a simulated restart (a new repository
+  instance), and no session is created while locked.
+- **Schema.** The full `sqlite_master` dump plus `PRAGMA table_info(users)`
+  is byte-identical (same SHA-256) to the Phase 1.3 baseline `a12227d`,
+  built in a separate worktree: 28 tables, 44 indexes, no triggers or views,
+  13 `users` columns, none credential-related. `schemaVersion` = 1.
+- **Dependencies.** The only lockfile change is `pointycastle` 4.0.0
+  (pure Dart). `collection` 1.19.1 and `convert` 3.1.2 are unchanged from
+  the baseline, as are drift, drift_dev, sqlite3, flutter_secure_storage,
+  go_router, and flutter_riverpod.
+- **Tests.** **165/165 pass** by the test runner's JSON count (163 plus the 2
+  regression tests). `flutter analyze` reports no issues.
+- **APK.** Package `com.rbsk.referredline`, minSdk 26, targetSdk 36.
+  Native libraries: `libsqlite3mc.so` and `libflutter.so` (3 ABIs), and
+  `libdartjni.so` (3 ABIs), which comes from the `jni` package used by
+  `path_provider_android` and was unchanged since the baseline.
+  `libVkLayer_khronos_validation.so` (arm64) ships inside Flutter's own
+  debug engine jar, so it's debug-build-only. The packaged Dart program
+  contains no synthetic test PIN, no test-only code, and no verifier value.
+- **Security scan (whole tree).** No secrets, tokens, private keys, or
+  logging calls in `lib/`. Every 10-digit match is a School Code
+  (UDISE-style `9370…`) from earlier, already-reviewed docs; none is a phone
+  number. Test PIN values appear in no current doc and in no committed
+  revision of any doc.
+- **Real device.** Real-device verification was not performed because no
+  Android device or emulator was available. Real-device KDF timing was not
+  verified either.
+
+**KDF iteration count: a decision for you, not a defect.** OWASP's Password
+Storage Cheat Sheet (checked at verification) recommends 600,000 iterations
+for PBKDF2-HMAC-SHA256. The implementation uses 210,000, which is 35% of
+that. The approved decisions required "a slow KDF, not a fast hash" but did
+not fix a number, so 210,000 is not a violation. However, its justification
+(device performance) is **unmeasured**, because no device was available. It
+needs either your explicit acceptance as a documented trade-off or a change
+to 600,000, ideally after an on-device measurement. No migration is needed
+either way.
+
+**New observation, predating Phase 1.4:** `AndroidManifest.xml` sets no
+backup rules, so Android's default auto-backup applies. Keystore keys are
+device-bound and are not restored, so restoring backed-up secure-storage
+values (the database key since Phase 1.2, and now PIN verifiers and
+sessions) on another device cannot decrypt them. This is not a recovery
+route, and the post-restore behavior is unverified. It needs a deliberate
+backup policy; recorded in docs/00 §10.
