@@ -48,7 +48,19 @@ class LoginLockoutTracker {
     if (lockedUntil == null) {
       return null;
     }
-    final remaining = lockedUntil.difference(_clock().toUtc());
+    final now = _clock().toUtc();
+    final remaining = lockedUntil.difference(now);
+    if (remaining > cooldown) {
+      // The device clock moved backwards after the lockout began (e.g.
+      // network time correcting a fast clock). Without this, the lockout
+      // would last as long as the clock moved back. Re-anchor it to end one
+      // cooldown from now.
+      await _write(
+        userId,
+        _LockoutState(failureCount: 0, lockedUntil: now.add(cooldown)),
+      );
+      return cooldown;
+    }
     return remaining > Duration.zero ? remaining : null;
   }
 

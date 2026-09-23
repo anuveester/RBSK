@@ -79,6 +79,24 @@ void main() {
       }
     });
 
+    test('a verifier with an empty or truncated key accepts no PIN', () {
+      // Regression: an empty key once compared equal to an empty
+      // derivation, so this shape accepted any PIN.
+      final parts = verifier.split(r'$');
+      final emptyKey = [parts[0], parts[1], parts[2], ''].join(r'$');
+      final shortKey = [
+        parts[0],
+        parts[1],
+        parts[2],
+        base64Encode(base64Decode(parts[3]).sublist(0, 16)),
+      ].join(r'$');
+
+      for (final bad in [emptyKey, shortKey]) {
+        expect(verifyCredential(_pin, bad), isFalse, reason: bad);
+        expect(verifyCredential(_otherPin, bad), isFalse, reason: bad);
+      }
+    });
+
     test('honours the iteration count embedded in the verifier', () {
       // A verifier created with a different iteration count must still
       // verify — this is what lets the count be raised later without

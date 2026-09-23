@@ -111,6 +111,11 @@ bool verifyCredential(String pin, String verifier) {
   } on FormatException {
     return false;
   }
+  // An empty or truncated key would compare equal to an equally short
+  // derivation, so such a verifier would accept any PIN. Fail closed.
+  if (expected.length != _derivedKeyLengthBytes) {
+    return false;
+  }
 
   final actual = _pbkdf2(utf8.encode(pin), salt, iterations, expected.length);
   return _constantTimeEquals(actual, expected);

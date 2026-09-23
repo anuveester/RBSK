@@ -11,12 +11,6 @@ import 'package:referredline/domain/entities/auth_status.dart';
 import 'package:referredline/domain/repositories/auth_repository.dart';
 import 'package:referredline/domain/repositories/user_repository.dart';
 
-/// Option A from docs/28_AUTHENTICATION_ARCHITECTURE_DECISION.md — the
-/// approved, only implementation of [AuthRepository] in Phase 1.4. Verifies
-/// credentials entirely on-device, never over a network, and stores nothing
-/// credential-shaped in the SQLite database (see `credential_hasher.dart`
-/// for the derivation and `login_lockout_tracker.dart` for the brute-force
-/// mitigation this class delegates to).
 /// `SecureKeyStore` key holding a user's credential verifier
 /// (docs/27_PHASE_1_4_PLAN.md §0.1). Holds the derived verifier only, never
 /// the PIN.
@@ -26,6 +20,12 @@ String credentialVerifierStorageKey(String userId) =>
 /// `SecureKeyStore` key holding the persisted local session.
 const String authSessionStorageKey = 'rbsk_active_session_v1';
 
+/// Option A from docs/28_AUTHENTICATION_ARCHITECTURE_DECISION.md — the
+/// approved, only implementation of [AuthRepository] in Phase 1.4. Verifies
+/// credentials entirely on-device, never over a network, and stores nothing
+/// credential-shaped in the SQLite database (see `credential_hasher.dart`
+/// for the derivation and `login_lockout_tracker.dart` for the brute-force
+/// mitigation this class delegates to).
 class LocalAuthRepository implements AuthRepository {
   LocalAuthRepository({
     required UserRepository userRepository,

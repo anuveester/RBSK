@@ -67,6 +67,19 @@ void main() {
     expect(await tracker.checkLockout('u1'), isNull);
   });
 
+  test('a device clock moved backwards cannot stretch the lockout beyond '
+      'one cooldown', () async {
+    // Regression: the lockout once lasted as long as the clock moved back.
+    await fail(5);
+    now = now.subtract(const Duration(hours: 6));
+
+    expect(await tracker.checkLockout('u1'), LoginLockoutTracker.cooldown);
+    now = now.add(const Duration(seconds: 59));
+    expect(await tracker.checkLockout('u1'), isNotNull);
+    now = now.add(const Duration(seconds: 1));
+    expect(await tracker.checkLockout('u1'), isNull);
+  });
+
   test('lockout is per user', () async {
     await fail(5, 'u1');
     expect(await tracker.checkLockout('u1'), isNotNull);
