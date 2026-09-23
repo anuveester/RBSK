@@ -26,16 +26,18 @@ LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
                          verified (PASS, no defects, no fixes required),
                          and formally APPROVED/CLOSED by explicit user
                          instruction.
-CURRENT TASK:           None — Phase 1.4 plan delivered
-                         (docs/27_PHASE_1_4_PLAN.md); awaiting your
-                         decisions on its open questions and your approval
+CURRENT TASK:           None — Phase 1.4 plan (docs/27) and a dedicated
+                         authentication architecture analysis
+                         (docs/28_AUTHENTICATION_ARCHITECTURE_DECISION.md)
+                         are delivered; awaiting your decisions and approval
                          before any implementation begins
-NEXT APPROVAL REQUIRED: Resolve docs/27 §19 open questions (credential
-                         mechanism: Option A/B/C; bootstrap provisioning),
-                         then approve the plan
-BLOCKERS:               Credential mechanism choice (docs/27 §7/§19 Q1) —
-                         implementation cannot start until this is decided
-LAST UPDATED:           2026-09-23 (Phase 1.4 planning)
+NEXT APPROVAL REQUIRED: Resolve docs/28 §18 decisions (Option A vs. B;
+                         KDF/hashing package; PIN length/format; bootstrap
+                         approach), then approve the docs/27 plan
+BLOCKERS:               Credential mechanism choice (docs/27 §7/§19 Q1,
+                         analyzed in full in docs/28) — implementation
+                         cannot start until this is decided
+LAST UPDATED:           2026-09-23 (authentication architecture analysis)
 ```
 
 ---
@@ -373,8 +375,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | 7 | Is Aadhaar collection officially required for AWC screening? | AWC form phase (not yet scheduled) — field stays reserved/unused until answered | Phase 0.6 |
 | 8 | `S.I` register abbreviation — confirmed meaning? | OCR alias table population (not yet scheduled). **Per Phase 0.6 approval condition 2, this must never be assumed or seeded without confirmation.** | Phase 0.6 |
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
-| 10 | **Credential mechanism for Phase 1.4** — the frozen `users` table has no credential column. Option A (local hash in secure storage, no schema change), Option B (add a credential column/table — a schema change requiring its own approval), or Option C (defer real login) — see docs/27 §7. | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23 |
-| 11 | Bootstrap ADMIN account provisioning — how is the first credential set without ever hardcoding one in source? See docs/27 §19 Q2. | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23 |
+| 10 | **Credential mechanism for Phase 1.4** — the frozen `users` table has no credential column. Option A (local hash in secure storage, no schema change), Option B (add a credential column/table — a schema change requiring its own approval), or Option C (defer real login) — see docs/27 §7. Full dedicated analysis (security, offline, multi-device, cloud-sync, decision matrix, recommendation): [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md) §7–§17. Option A is recommended (docs/28 §17) but **not approved**. | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23; analyzed 2026-09-23 |
+| 11 | Bootstrap ADMIN account provisioning — how is the first credential set without ever hardcoding one in source? See docs/27 §19 Q2 and docs/28 §12 (first-run Admin setup recommended over a seeded fixed credential or an out-of-band enrollment code). | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23; analyzed 2026-09-23 |
+| 12 | **KDF/hashing package choice** — docs/27 §11 flagged "a `crypto` package" generically; docs/28 §11/§18 found this needs to be specifically a slow/memory-hard KDF (PBKDF2-with-many-iterations, bcrypt, or Argon2), not a fast general-purpose hash, since PIN length alone cannot resist offline hash-extraction brute force. Needs its own dependency approval regardless of Option A/B. | Phase 1.4 implementation | Authentication architecture analysis, 2026-09-23 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -525,9 +528,18 @@ here.
   originally designed around Supabase Auth (external, not yet integrated).
   Three options are laid out in docs/27 §7 (local hash in secure storage, no
   schema change — recommended; a schema change requiring separate approval;
-  or deferring real login). **Not decided — see §10 items 10–11.**
-- **Next step:** you resolve docs/27 §19's open questions and approve the
-  plan before any implementation begins.
+  or deferring real login). **Not decided — see §10 items 10–12.**
+- **Dedicated architecture analysis now available:**
+  [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md)
+  — full security/offline/multi-device/cloud-sync analysis of Options A/B/C,
+  a factual decision matrix, and a recommended architecture (Option A,
+  behind a swappable `AuthRepository` interface, with a slow/memory-hard KDF
+  and a first-run Admin setup flow). **This is a recommendation, not an
+  approval** — it does not authorize implementation and Phase 1.4 remains
+  PLANNED / NOT APPROVED.
+- **Next step:** you resolve docs/28 §18's decisions (Option A/B, KDF
+  package, PIN format, bootstrap approach) and approve the docs/27 plan
+  before any implementation begins.
 
 ---
 
