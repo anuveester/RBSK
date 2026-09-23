@@ -87,6 +87,15 @@ void main() {
 
         expect(session.role, AppRole.ADMIN);
         expect(session.userId, row.id);
+        expect(
+          row.id,
+          matches(
+            RegExp(
+              r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+            ),
+          ),
+          reason: 'users.id must be a UUIDv4 (docs/04 §0)',
+        );
         expect(row.role, AppRole.ADMIN);
         expect(row.displayName, 'Synthetic Admin');
         expect(row.staffId, isNull);

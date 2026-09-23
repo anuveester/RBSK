@@ -75,7 +75,7 @@ class LocalAuthRepository implements AuthRepository {
     // user exists yet and setup can simply be retried. The reverse order
     // could leave an Admin row with no credential, which would lock setup
     // out permanently (any user existing = setup already done).
-    final userId = generateLocalId('user');
+    final userId = generateUuidV4();
     await _store.write(
       _credentialKey(userId),
       await deriveCredentialVerifierInBackground(pin),
