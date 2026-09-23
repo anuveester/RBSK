@@ -1,6 +1,101 @@
 # Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (Implementation Plan)
 
-**Status: awaiting approval. No code, dependency, or schema change made yet.**
+**Status: IMPLEMENTED (commits `b797ac3`, `09f4b0b`), awaiting independent
+verification. NOT closed.** Closure requires independent verification and
+explicit user approval. Report:
+[29_PHASE_1_4_REPORT.md](29_PHASE_1_4_REPORT.md). §1–§23 below are the
+original plan; §0 records the final approved decisions, which supersede §7
+and §19.
+
+## 0. Final approved decisions (recorded at implementation approval)
+
+These supersede the open questions in §7 and §19. Analysis behind them:
+[28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md).
+
+| # | Decision |
+|---|---|
+| 1 | Credential architecture: **Option A** (docs/28 §7). |
+| 2 | Only a derived credential verifier is stored, in the existing Android Keystore-backed `SecureKeyStore`, keyed by `users.id`. |
+| 3 | **No schema change.** No `users.pin_hash`, no `user_credentials` table, no credential column, no migration. `schemaVersion` stays 1; the 28 business tables are unchanged. |
+| 4 | Authentication sits behind an `AuthRepository` abstraction, keeping the IDENTITY → CREDENTIAL → SESSION → RBAC → AUDIT separation (docs/28 §10) so the mechanism can be replaced by a future cloud identity provider. |
+| 5 | Credential: **6-digit numeric PIN**. The raw PIN is never stored or logged, and never appears in source, seed files, test fixtures (synthetic test PINs only), documentation, Git, the database, or log output. |
+| 6 | Derivation: a slow password-based KDF, not plain SHA-256 or any other fast hash. Selected after checking compatibility: **PBKDF2-HMAC-SHA256 via `pointycastle`**. Parameters, salt handling, and verifier format are in §0.1. |
+| 7 | Bootstrap: **first-run Admin setup**. No seeded or default Admin PIN, no Admin credential in source or seed data, never logged. Once any user exists, setup cannot run again. |
+| 8 | No cloud authentication and no credential synchronization. Nothing assumes verifiers sync between devices. Future cloud identity stays replaceable/TBD. |
+| 9 | No biometrics in Phase 1.4. |
+| 10 | `schemaVersion` = 1, 28 business tables, no migration. |
+
+Answers to §19's remaining questions, decided at implementation time:
+- **Q3 (bootstrap user ↔ `staff` row):** the bootstrap Admin is a `users` row
+  with `staff_id = NULL`, which the frozen schema allows. No `staff` row is
+  created or modified.
+- **Q4 (`devices` row):** deferred, as recommended. No `devices` row is
+  written in Phase 1.4.
+
+### 0.1 Credential derivation: exact mechanism
+
+| | |
+|---|---|
+| Algorithm | PBKDF2 with HMAC-SHA256 (`pointycastle`'s `PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))`) |
+| Iterations | **210,000** (see rationale below) |
+| Salt | 16 random bytes (128-bit) per credential from `Random.secure()`. The salt is unique per credential and **not secret**: it is stored inside the verifier string. |
+| Derived key | 32 bytes (256-bit) |
+| Verifier format | `pbkdf2-hmac-sha256$<iterations>$<base64 salt>$<base64 derived key>` |
+| Comparison | Constant-time byte comparison |
+| Storage key | `rbsk_credential_verifier_<users.id>` in `SecureKeyStore` |
+
+**Why `pointycastle`:** checked on pub.dev at implementation time. It is pure
+Dart, so it adds no second native build step (the project already carries
+one, `sqlite3mc`). It is widely used (about 3.66M downloads, 415 likes) and
+provides PBKDF2 as a standard, documented derivator. The `bcrypt` package
+was also considered but has far less usage (about 50k downloads). Argon2 was
+not chosen because the maintained Dart options rely on native bindings,
+which would repeat the native-build fragility the project already hit with
+`sqlcipher_flutter_libs`.
+
+**Why 210,000 iterations, not OWASP's current 600,000:** OWASP's Password
+Storage Cheat Sheet (2023) recommends 600,000 iterations for
+PBKDF2-HMAC-SHA256. This implementation deliberately uses 210,000 because
+derivation runs as pure Dart (not hardware-accelerated native code) on
+Android devices as old as `minSdk 26`, and staff log in many times per field
+day. **This is a trade-off, not full compliance with the current OWASP
+figure.** The iteration count is embedded in each verifier, so it can be
+raised later without invalidating existing verifiers. **The value has not
+been benchmarked on real RBSK field hardware in this environment**;
+on-device benchmarking before rollout is recommended.
+
+### 0.2 Login identity selection
+
+The Login screen lists active users and asks the user to pick their own
+name, then enter their PIN. docs/02 says "username/email + password (or
+PIN)"; a picker was chosen instead because `users.email` is nullable (no
+guaranteed typed identifier exists) and this is a known team of about 8–10
+people on shared devices. The user list is not secret within the team, so
+showing it does not weaken the PIN.
+
+### 0.3 Brute-force mitigation: exact behavior
+
+- 5 consecutive incorrect PINs for one user locks that user out for 60 seconds.
+- An attempt made during the lockout is rejected without checking the PIN,
+  and does not extend the lockout.
+- A successful login resets the counter.
+- The counter is stored per user in `SecureKeyStore`, not in the database.
+- **There is no permanent lockout.** The expiring cooldown is the recovery
+  path, so the only Admin can never be locked out for good.
+- **Limitation:** there is no "forgot PIN" flow in Phase 1.4. Resetting a PIN
+  needs a second authenticated Admin and a user-management screen, which
+  belong to the later Admin-tools phase. If the only Admin forgets their PIN,
+  the Phase 1.4 build has no in-app recovery. Recovering would mean clearing
+  app data, which also loses the device-bound database key and therefore the
+  local data. This limitation is recorded rather than covered with a weak
+  bypass.
+- A corrupted lockout entry is treated as "not locked" rather than
+  crashing login. The corrupted and unlocked outcomes are equivalent here,
+  because anyone able to write to the Keystore-backed store could clear the
+  entry anyway.
+- The lockout counter is device-local. Someone with root access to the
+  device could reset it. The lockout protects against guessing through the
+  app's UI; resistance to an extracted verifier comes from the KDF.
 
 Scope reference: [21_PHASE_0_6_FREEZE.md](21_PHASE_0_6_FREEZE.md) §10, step 1.4
 ("Auth + RBAC scaffolding (3 roles), secure token storage, role-gated navigation

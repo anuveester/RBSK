@@ -1,5 +1,12 @@
 # Authentication Architecture Decision
 
+> **Decision outcome (2026-09-23):** Option A was approved together with the
+> recommendations in §17: an `AuthRepository` abstraction, a slow KDF, a
+> 6-digit PIN, and first-run Admin setup. The final decisions and exact
+> parameters are recorded in [27_PHASE_1_4_PLAN.md](27_PHASE_1_4_PLAN.md) §0.
+> The approval came separately; the analysis below is unchanged from when it
+> was written.
+
 **Status: ANALYSIS ONLY. This document does not authorize implementation.**
 No code, dependency, schema, or migration change was made while producing it.
 Phase 1.4 remains PLANNED, NOT APPROVED (see

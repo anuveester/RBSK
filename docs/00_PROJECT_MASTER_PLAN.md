@@ -18,26 +18,18 @@ block, or material revision — not only at project end.** See §13.
 
 ```
 CURRENT PHASE:          Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell
-PHASE STATUS:           PLANNED — plan written (docs/27_PHASE_1_4_PLAN.md),
-                         NOT YET APPROVED, NOT implemented. Phase 1.3
-                         remains CLOSED / APPROVED, unaffected by this.
+PHASE STATUS:           IMPLEMENTED — awaiting independent verification.
+                         NOT CLOSED. Commits b797ac3 (implementation),
+                         09f4b0b (UUIDv4 fix). Report: docs/29.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
-                         Layer. Implementation complete, independently
-                         verified (PASS, no defects, no fixes required),
-                         and formally APPROVED/CLOSED by explicit user
-                         instruction.
-CURRENT TASK:           None — Phase 1.4 plan (docs/27) and a dedicated
-                         authentication architecture analysis
-                         (docs/28_AUTHENTICATION_ARCHITECTURE_DECISION.md)
-                         are delivered; awaiting your decisions and approval
-                         before any implementation begins
-NEXT APPROVAL REQUIRED: Resolve docs/28 §18 decisions (Option A vs. B;
-                         KDF/hashing package; PIN length/format; bootstrap
-                         approach), then approve the docs/27 plan
-BLOCKERS:               Credential mechanism choice (docs/27 §7/§19 Q1,
-                         analyzed in full in docs/28) — implementation
-                         cannot start until this is decided
-LAST UPDATED:           2026-09-23 (authentication architecture analysis)
+                         Layer (APPROVED / CLOSED, unchanged by Phase 1.4).
+CURRENT TASK:           None — Phase 1.4 implementation report delivered
+                         (docs/29_PHASE_1_4_REPORT.md)
+NEXT APPROVAL REQUIRED: Independent verification of Phase 1.4, then your
+                         explicit closure approval
+BLOCKERS:               None for verification. Before real data is entered:
+                         a PIN-recovery path for a sole Admin (§10 item 13)
+LAST UPDATED:           2026-09-23 (Phase 1.4 implementation)
 ```
 
 ---
@@ -53,9 +45,9 @@ LAST UPDATED:           2026-09-23 (authentication architecture analysis)
 | Platform | Android-first (Flutter; no iOS/web/desktop target built) |
 | Primary users | RBSK Medical Officers and field team members |
 | Authorized user count | ~8–10 (single team, "Team-B", confirmed from source Micro Plan) |
-| Current technology stack | Flutter 3.47.2 · Dart 3.13.2 · Riverpod · go_router · Drift (SQLite) · `sqlite3` + SQLite3MultipleCiphers encryption |
-| Current project status | Foundation phases complete (skeleton + encrypted schema + seed data/read layer, Phases 1.1–1.3 all approved & closed); no feature UI built yet; Phase 1.4 planned (docs/27), not yet approved |
-| Git | 8 commits on `main` (as of Phase 1.3 implementation), working tree otherwise clean |
+| Current technology stack | Flutter 3.47.2 · Dart 3.13.2 · Riverpod · go_router · Drift (SQLite) · `sqlite3` + SQLite3MultipleCiphers encryption · `pointycastle` (PBKDF2 PIN verifier) |
+| Current project status | Phases 1.1–1.3 approved & closed. Phase 1.4 (local PIN auth, RBAC read model, role-gated 5-destination shell) implemented, awaiting independent verification. No business feature UI yet — the five destinations are stubs |
+| Git | See `git log`; working tree clean after each phase commit |
 
 ---
 
@@ -137,10 +129,11 @@ Status legend: **DONE** (implemented & tested) · **IN PROGRESS** · **PLANNED**
 **REQUIRES APPROVAL**.
 
 Nothing below is marked DONE unless code exists and tests pass for it — as of
-this update, that is the database schema + encryption layer (Phase 1.2) and
-the four reference-data domains' seed data + read layer (Phase 1.3).
-Everything else remains architecture/design (Phase 0.x) with no application
-code yet.
+this update, that is the database schema + encryption layer (Phase 1.2), the
+four reference-data domains' seed data + read layer (Phase 1.3), and local
+authentication + RBAC navigation (Phase 1.4, implemented, pending
+verification/closure). Everything else remains architecture/design (Phase
+0.x) with no application code yet.
 
 ### Planning
 | Feature | Status |
@@ -223,8 +216,9 @@ DONE** (docs/10), **implementation NOT STARTED**.
 ### Security
 | Feature | Status |
 |---|---|
-| Authentication | Architecture: DONE (docs/08). Implementation: PLANNED (Phase 1.4) |
-| RBAC (3 roles) | Schema/matrix: DONE (docs/04 §3). Enforcement: PLANNED (Phase 1.4) |
+| Authentication | **Local (device) authentication DONE, tested — Phase 1.4, pending closure** (6-digit PIN, PBKDF2 verifier in Keystore-backed storage, first-run Admin setup, per-user lockout, session persistence/logout). Cloud identity: NOT STARTED, TBD. Creating non-Admin users in-app: NOT STARTED (user management, unscheduled). PIN recovery: NOT STARTED |
+| RBAC (3 roles) | Schema/matrix: DONE (docs/04 §3). **Navigation-level: DONE, tested — Phase 1.4, pending closure** (route guard + Admin-only `More` entries). Action-level enforcement: comes with each feature phase. Server-side (RLS): NOT STARTED |
+| Navigation shell | **DONE, tested — Phase 1.4, pending closure** (Home · Visits · Referrals · Reports · More; all five are stubs) |
 | Encrypted local database | **DONE, tested, verified in the built APK** (Phase 1.2) |
 | Secure key storage | **DONE, tested** (Android Keystore via `flutter_secure_storage`, Phase 1.2) |
 | Cloud security (RLS, TLS) | Architecture: DONE. Implementation: NOT STARTED (cloud/sync phase not yet scheduled) |
@@ -253,7 +247,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| **Phase 1.4** | **PLANNED — NOT YET APPROVED** | Auth + RBAC scaffolding, secure token storage, role-gated navigation shell. One open architectural question found: the frozen `users` table has no credential column — 3 options laid out, none chosen. | — | — | docs/27 |
+| **Phase 1.4** | **IMPLEMENTED — AWAITING INDEPENDENT VERIFICATION (not closed)** | Local PIN authentication (Option A, no schema change), first-run Admin setup, secure session, RBAC read model, route guards, role-gated 5-destination shell. 163/163 tests, analyze clean, APK builds. | 2026-09-23 (implementation) | `30d89f5`, `cbb225b` (planning/analysis), `b797ac3`, `09f4b0b` (code), docs commit (§12) | docs/27, 28, 29 |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
@@ -320,6 +314,13 @@ the disagreement is corrected here — never silently.
 | Disease Master seed count: **37** (11 Defects + 8 Deficiencies + 9 Diseases + 9 Developmental Delay) | **USER-DECIDED**, DONE, seeded & tested (Phase 1.3, commit `30d01ff`). The earlier "29" figure is superseded — see docs/04 §9 item 12-style correction, recorded in §10 R7 below |
 | Code 30 ("Others (Specify)") — official catch-all, seeded now, no clinical meaning invented, requires user-supplied specification when selected | **USER-DECIDED**, DONE, seeded & tested (Phase 1.3) |
 | Schema changes after the freeze require an explicit, approved, numbered amendment | **USER-DECIDED** (Phase 0.6 approval condition 9) |
+| Authentication = Option A: device-local credential verifier in `SecureKeyStore`, keyed by `users.id`; **no credential column/table, no migration** | **USER-DECIDED** (Phase 1.4 approval), implemented `b797ac3` |
+| Auth behind an `AuthRepository` abstraction (identity → credential → session → RBAC → audit kept separate) | **USER-DECIDED**, implemented |
+| Credential = 6-digit numeric PIN; raw PIN never stored or logged | **USER-DECIDED**, implemented and tested |
+| PIN verifier = PBKDF2-HMAC-SHA256 (`pointycastle`), 210,000 iterations, 16-byte per-credential salt — below OWASP's current 600,000, deliberate and documented (docs/27 §0.1) | **CONFIRMED** at implementation (parameters chosen within the approved "slow KDF, not a fast hash" decision) |
+| Bootstrap = first-run Admin setup; no seeded/default credential | **USER-DECIDED**, implemented |
+| No cloud auth, no credential sync, no biometrics in Phase 1.4 | **USER-DECIDED** |
+| Runtime-created `users.id` values are RFC 4122 UUIDv4 (docs/04 §0) | **CONFIRMED**, implemented `09f4b0b` |
 
 ---
 
@@ -333,7 +334,7 @@ the disagreement is corrected here — never silently.
 | Encryption technology | `sqlite3` 3.6.0 + SQLite3MultipleCiphers (`sqlite3mc`), `PRAGMA key`, SQLCipher-compatible |
 | Migration status | Version 1 = the full frozen schema in one `onCreate` pass. No `onUpgrade` steps exist yet (none needed — no prior version to migrate from). Strategy structured to add numbered steps, never destructive recreation. |
 | Key invariants | Client-generated TEXT UUID primary keys everywhere; no hard deletes; append-only history tables (`visit_status_history`, `staff_assignments`, `audit_log`, `ocr_results`); `created_by`/`updated_by` carry no FK constraint (matches the frozen DDL exactly, even though it looks asymmetric with columns like `changed_by` that do) |
-| Currently implemented layer | Schema + encrypted connection + centralized Riverpod provider (Phase 1.2), plus idempotent seed data and a minimal repository/entity read layer for 4 reference domains (Phase 1.3, commit `30d01ff`). No UI, no auth, no business-transaction rows written yet |
+| Currently implemented layer | Schema + encrypted connection + centralized Riverpod provider (Phase 1.2); idempotent seed data and a minimal repository/entity read layer for 4 reference domains (Phase 1.3, commit `30d01ff`); a `users` repository used by local auth (Phase 1.4). The only runtime-written business rows are the first-run Admin's `users` row and its `last_login_at`. **No schema change in Phase 1.4** — still `schemaVersion = 1`, 28 tables. Credential verifiers, sessions and lockout state live in `SecureKeyStore`, not the database |
 | Future database work | Phase 1.3 DONE: rows into 6 existing tables, no schema change. Later: `sync_queue` (local-only, not part of the 28) when the sync-engine phase is scheduled; `awc_checklist_items` catalogue rows when the AWC form phase is scheduled |
 
 **Not to be confused:** the local-only `sync_queue` outbox table
@@ -375,9 +376,11 @@ Phase 1.1 and reaffirmed at every phase since.
 | 7 | Is Aadhaar collection officially required for AWC screening? | AWC form phase (not yet scheduled) — field stays reserved/unused until answered | Phase 0.6 |
 | 8 | `S.I` register abbreviation — confirmed meaning? | OCR alias table population (not yet scheduled). **Per Phase 0.6 approval condition 2, this must never be assumed or seeded without confirmation.** | Phase 0.6 |
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
-| 10 | **Credential mechanism for Phase 1.4** — the frozen `users` table has no credential column. Option A (local hash in secure storage, no schema change), Option B (add a credential column/table — a schema change requiring its own approval), or Option C (defer real login) — see docs/27 §7. Full dedicated analysis (security, offline, multi-device, cloud-sync, decision matrix, recommendation): [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md) §7–§17. Option A is recommended (docs/28 §17) but **not approved**. | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23; analyzed 2026-09-23 |
-| 11 | Bootstrap ADMIN account provisioning — how is the first credential set without ever hardcoding one in source? See docs/27 §19 Q2 and docs/28 §12 (first-run Admin setup recommended over a seeded fixed credential or an out-of-band enrollment code). | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23; analyzed 2026-09-23 |
-| 12 | **KDF/hashing package choice** — docs/27 §11 flagged "a `crypto` package" generically; docs/28 §11/§18 found this needs to be specifically a slow/memory-hard KDF (PBKDF2-with-many-iterations, bcrypt, or Argon2), not a fast general-purpose hash, since PIN length alone cannot resist offline hash-extraction brute force. Needs its own dependency approval regardless of Option A/B. | Phase 1.4 implementation | Authentication architecture analysis, 2026-09-23 |
+| 13 | **PIN recovery for a sole Admin.** Phase 1.4 has none: a forgotten sole-Admin PIN can only be recovered by clearing app data, which also loses the device-bound database key and therefore local data. Needs a second Admin or an Admin reset flow. | **Must be solved before real data is entered** (not blocking Phase 1.4 closure — no business data exists yet) | Phase 1.4 implementation, 2026-09-23 |
+| 14 | Session inactivity re-lock — docs/08 recommends PIN re-entry after inactivity on shared devices; the duration is an undecided policy, so none was implemented. | Hardening before rollout | Phase 1.4 implementation, 2026-09-23 |
+| 15 | In-app creation of Medical Officer / Team Member accounts (user management) — no phase number assigned. Until then only the first-run Admin can log in on a device. | Multi-user use on a real device | Phase 1.4 implementation, 2026-09-23 |
+| 16 | On-device benchmark of the PIN KDF (210,000 PBKDF2 iterations; about 1.5 s per derivation in the debug test VM, not representative of a release build on a phone). Confirm or raise the count; no migration is needed to raise it. | Rollout readiness | Phase 1.4 implementation, 2026-09-23 |
+| 17 | Cross-device propagation of user deactivation and role changes | Depends on the unscheduled sync phase (§10 item 6 / docs/07) | Phase 1.4 analysis (docs/28 §6), 2026-09-23 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -391,6 +394,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | R6 | OPT designation | Optometrist | Phase 0.6 approval condition E |
 | R7 | Disease Master seed count: 29 or 37? | **37.** Explicit user authorization; direct re-enumeration of docs/14 §7 is authoritative (11+8+9+9). "29" (carried in docs/04, docs/16, docs/21) was a documentation miscount, same class of error as R1. | Phase 1.3 implementation instruction, commit `30d01ff`, 2026-09-23 |
 | R8 | Should Job Aid code 30 ("Others — Specify") be seeded? | **Yes**, as the official catch-all — seeded verbatim as "Others (Specify)". Not a predefined diagnosis; requires user-supplied specification when selected in a later phase's UI. No clinical meaning invented. | Phase 1.3 implementation instruction, commit `30d01ff`, 2026-09-23 |
+| R9 | (was active #10) Credential mechanism for Phase 1.4 — the frozen `users` table has no credential column | **Option A**: verifier in the Keystore-backed `SecureKeyStore`, keyed by `users.id`; no schema change, no migration. Analysis: docs/28. | Phase 1.4 implementation approval, 2026-09-23; implemented `b797ac3` |
+| R10 | (was active #11) Bootstrap Admin provisioning without a hardcoded credential | **First-run Admin setup** — no seeded/default PIN; setup is refused once any user exists. | Phase 1.4 implementation approval, 2026-09-23; implemented `b797ac3` |
+| R11 | (was active #12) KDF/hashing choice — must be a slow KDF, not a fast hash | **PBKDF2-HMAC-SHA256 via `pointycastle`**, 210,000 iterations, 16-byte per-credential salt, self-describing verifier. Iteration count below OWASP's current figure is deliberate and tracked as active #16. | Phase 1.4 implementation, 2026-09-23 (docs/27 §0.1) |
 
 ---
 
@@ -405,6 +411,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | Schema drift (undocumented deviation from the frozen DDL) | Would undermine the "frozen schema" guarantee everything else depends on | Phase 0.6 approval condition 9 requires a controlled, approved amendment for any change; this Master Plan's §13 rules require re-verification against the frozen doc every phase | **Mitigated by process** |
 | Source-plan data quality (visit-date transposition bug, enrolment mismatches — docs/17) | Naive import logic would silently corrupt planned visit dates | Documented derivation rule (sheet + S.No, weekday cross-check) exists and is scoped for Phase 1.6; not yet implemented | **Active, understood, not yet built** |
 | Future government format changes (Job Aid revision, new referral facility types) | Could require new Disease Master rows or referral destinations | Both are versioned/configuration data, not enum values baked into code — additive by design | **Low, mitigated by design** |
+| Sole Admin forgets PIN — no in-app recovery in Phase 1.4 (§10 #13) | Recovering means clearing app data, which loses local data | No business data exists yet; a recovery path must exist before real data entry | **Active, not blocking yet** |
+| Local credential strength — 210,000 PBKDF2 iterations (below OWASP's current 600,000), not yet benchmarked on a device (§10 #16) | Lower resistance if a stored verifier is extracted from a compromised device | Keystore-backed storage, per-credential salt; count embedded per verifier so it can be raised without migration | **Active, documented trade-off** |
+| Real-disk encryption tests are I/O-timing sensitive (observed 0–24 s for one test with no code change) | Spurious timeouts under parallel CPU load | Explicit 2-minute timeout on the two real-disk tests (Phase 1.4, assertions unchanged — docs/29 §12) | **Mitigated** |
 | Two count discrepancies of the same class both found and resolved (24→28; Disease Master 29→37) | Suggests summary/prose sections in early docs are more error-prone than the underlying DDL/source tables | Direct re-enumeration against source, not summary prose, is now the standing practice for any count claim (this document follows it throughout) | **Resolved both instances; process fix applied going forward — watch for a third instance in any future summary figure** |
 
 ---
@@ -421,6 +430,13 @@ Phase 1.1 and reaffirmed at every phase since.
 | Doc correction | `1c071f6` | 24→28 table count and encryption package doc corrections | 2026-09-23 |
 | Phase 1.3 (code) | `30d01ff` | Reference/configuration seed data + minimal read layer | 2026-09-23 |
 | Phase 1.3 (docs) | `397ce88` | This Master Plan update + Phase 1.3 plan + report | 2026-09-23 |
+| Phase 1.3 (docs) | `8b357f8` | Record the Phase 1.3 docs commit hash | 2026-09-23 |
+| Phase 1.3 (closure) | `a12227d` | Formal closure recorded | 2026-09-23 |
+| Phase 1.4 (plan) | `30d89f5` | Phase 1.4 plan (docs/27) + Master Plan | 2026-09-23 |
+| Phase 1.4 (analysis) | `cbb225b` | Authentication architecture decision analysis (docs/28) | 2026-09-23 |
+| Phase 1.4 (code) | `b797ac3` | Local PIN auth, RBAC read model, role-gated navigation shell | 2026-09-23 |
+| Phase 1.4 (code) | `09f4b0b` | RFC 4122 v4 UUIDs for runtime-created users | 2026-09-23 |
+| Phase 1.4 (docs) | the commit that adds docs/29 (see `git log`) | Report + final decisions (docs/27 §0) + this Master Plan update | 2026-09-23 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -506,40 +522,34 @@ treat this section as a substitute for either document.
   two-step pattern (Claude implements + reports, user reviews + approves)
   used for every phase so far.
 
-### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (PLANNING)
+### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (IMPLEMENTED — NOT CLOSED)
 
-**Full plan:** [27_PHASE_1_4_PLAN.md](27_PHASE_1_4_PLAN.md). Summary only
-here.
+**Plan and final decisions:** [27_PHASE_1_4_PLAN.md](27_PHASE_1_4_PLAN.md) §0.
+**Analysis:** [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md).
+**Report:** [29_PHASE_1_4_REPORT.md](29_PHASE_1_4_REPORT.md). Summary only here.
 
-- **Status: PLANNED, NOT approved, NOT implemented.** No code, dependency,
-  or schema change has been made for this phase.
-- **Scope (per docs/21 §10, unchanged from the frozen roadmap):** Login
-  screen, a local session mechanism, a role-gated 5-destination navigation
-  shell (Home · Visits · Referrals · Reports · More), route guarding, and a
-  minimal RBAC read model for nav visibility — plus one bootstrap ADMIN
-  account, since `users` is currently empty.
-- **Explicitly out of scope:** every feature from Phase 1.5 onward (School/
-  AWC Master, Micro Plan import, visit planning, screening, register photo/
-  OCR, cloud sync, reporting, treatment/follow-up), and a full User
-  Management CRUD screen (deferred to a later Admin-tools phase, never
-  scheduled yet).
-- **One open architectural question found during planning:** the frozen
-  `users` table has no credential column at all — authentication was
-  originally designed around Supabase Auth (external, not yet integrated).
-  Three options are laid out in docs/27 §7 (local hash in secure storage, no
-  schema change — recommended; a schema change requiring separate approval;
-  or deferring real login). **Not decided — see §10 items 10–12.**
-- **Dedicated architecture analysis now available:**
-  [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md)
-  — full security/offline/multi-device/cloud-sync analysis of Options A/B/C,
-  a factual decision matrix, and a recommended architecture (Option A,
-  behind a swappable `AuthRepository` interface, with a slow/memory-hard KDF
-  and a first-run Admin setup flow). **This is a recommendation, not an
-  approval** — it does not authorize implementation and Phase 1.4 remains
-  PLANNED / NOT APPROVED.
-- **Next step:** you resolve docs/28 §18's decisions (Option A/B, KDF
-  package, PIN format, bootstrap approach) and approve the docs/27 plan
-  before any implementation begins.
+- **Status: IMPLEMENTED, awaiting independent verification. NOT closed**:
+  closure requires that verification pass and your explicit approval.
+- **Approved decisions:** Option A (verifier in `SecureKeyStore`, keyed by
+  `users.id`), no schema change, `AuthRepository` abstraction, 6-digit PIN,
+  PBKDF2 (not a fast hash), first-run Admin setup, no cloud auth, no
+  credential sync, no biometrics.
+- **Implemented:** first-run Admin setup, login (pick your name, then PIN),
+  per-user lockout (5 attempts, 60 s, never permanent), secure session
+  persistence with offline restoration, logout, RBAC read model, go_router
+  guards, and the 5-destination shell with Admin-only `More` entries. All
+  five destinations are stubs.
+- **Quality gates:** 163/163 tests (JSON-reporter count), `flutter analyze`
+  clean, debug APK builds with `libsqlite3mc.so` still bundled.
+  `schemaVersion` = 1, 28 tables, no migration. Seed files unchanged. The
+  security/PII scan is clean.
+- **Called out for review:** a timeout-only change to one Phase 1.2 test
+  file (docs/29 §12); a post-commit defect fix to UUIDv4 ids (`09f4b0b`).
+- **Known limitations (docs/29 §18):** only the Admin can log in on a device
+  until user management exists; no PIN recovery (§10 #13); KDF not yet
+  benchmarked on a device (§10 #16); no inactivity re-lock (§10 #14); no
+  real-device verification yet.
+- **Phase 1.5 not started.**
 
 ---
 
