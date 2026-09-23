@@ -415,7 +415,7 @@ Phase 1.1 and reaffirmed at every phase since.
 | Phase 1.2 (report) | `09e872c` | Phase 1.2 implementation report | 2026-09-23 |
 | Doc correction | `1c071f6` | 24→28 table count and encryption package doc corrections | 2026-09-23 |
 | Phase 1.3 (code) | `30d01ff` | Reference/configuration seed data + minimal read layer | 2026-09-23 |
-| Phase 1.3 (docs) | *pending* | This Master Plan update + Phase 1.3 plan + report | 2026-09-23 |
+| Phase 1.3 (docs) | `397ce88` | This Master Plan update + Phase 1.3 plan + report | 2026-09-23 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
