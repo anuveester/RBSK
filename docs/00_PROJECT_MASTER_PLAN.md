@@ -17,20 +17,25 @@ block, or material revision — not only at project end.** See §13.
 ## 0. Current Status
 
 ```
-CURRENT PHASE:          Phase 1.4 — not yet started (planning has not begun)
-PHASE STATUS:           Phase 1.3 CLOSED / APPROVED. Phase 1.4 awaits a
-                         written plan (matching the docs/22, docs/25
-                         pattern) before any implementation begins.
+CURRENT PHASE:          Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell
+PHASE STATUS:           PLANNED — plan written (docs/27_PHASE_1_4_PLAN.md),
+                         NOT YET APPROVED, NOT implemented. Phase 1.3
+                         remains CLOSED / APPROVED, unaffected by this.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
                          Layer. Implementation complete, independently
                          verified (PASS, no defects, no fixes required),
                          and formally APPROVED/CLOSED by explicit user
                          instruction.
-CURRENT TASK:           None — awaiting direction to begin Phase 1.4
-                         planning
-NEXT APPROVAL REQUIRED: A written Phase 1.4 plan, once requested
-BLOCKERS:               None
-LAST UPDATED:           2026-09-23 (Phase 1.3 formal closure)
+CURRENT TASK:           None — Phase 1.4 plan delivered
+                         (docs/27_PHASE_1_4_PLAN.md); awaiting your
+                         decisions on its open questions and your approval
+                         before any implementation begins
+NEXT APPROVAL REQUIRED: Resolve docs/27 §19 open questions (credential
+                         mechanism: Option A/B/C; bootstrap provisioning),
+                         then approve the plan
+BLOCKERS:               Credential mechanism choice (docs/27 §7/§19 Q1) —
+                         implementation cannot start until this is decided
+LAST UPDATED:           2026-09-23 (Phase 1.4 planning)
 ```
 
 ---
@@ -47,7 +52,7 @@ LAST UPDATED:           2026-09-23 (Phase 1.3 formal closure)
 | Primary users | RBSK Medical Officers and field team members |
 | Authorized user count | ~8–10 (single team, "Team-B", confirmed from source Micro Plan) |
 | Current technology stack | Flutter 3.47.2 · Dart 3.13.2 · Riverpod · go_router · Drift (SQLite) · `sqlite3` + SQLite3MultipleCiphers encryption |
-| Current project status | Foundation phases complete (skeleton + encrypted schema + seed data/read layer, Phases 1.1–1.3 all approved & closed); no feature UI built yet; Phase 1.4 not yet planned |
+| Current project status | Foundation phases complete (skeleton + encrypted schema + seed data/read layer, Phases 1.1–1.3 all approved & closed); no feature UI built yet; Phase 1.4 planned (docs/27), not yet approved |
 | Git | 8 commits on `main` (as of Phase 1.3 implementation), working tree otherwise clean |
 
 ---
@@ -246,7 +251,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| Phase 1.4 | PLANNED — NOT YET APPROVED | Auth + RBAC scaffolding, secure token storage, role-gated navigation shell | — | — | docs/21 §10 (one-line scope only) |
+| **Phase 1.4** | **PLANNED — NOT YET APPROVED** | Auth + RBAC scaffolding, secure token storage, role-gated navigation shell. One open architectural question found: the frozen `users` table has no credential column — 3 options laid out, none chosen. | — | — | docs/27 |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
@@ -368,6 +373,8 @@ Phase 1.1 and reaffirmed at every phase since.
 | 7 | Is Aadhaar collection officially required for AWC screening? | AWC form phase (not yet scheduled) — field stays reserved/unused until answered | Phase 0.6 |
 | 8 | `S.I` register abbreviation — confirmed meaning? | OCR alias table population (not yet scheduled). **Per Phase 0.6 approval condition 2, this must never be assumed or seeded without confirmation.** | Phase 0.6 |
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
+| 10 | **Credential mechanism for Phase 1.4** — the frozen `users` table has no credential column. Option A (local hash in secure storage, no schema change), Option B (add a credential column/table — a schema change requiring its own approval), or Option C (defer real login) — see docs/27 §7. | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23 |
+| 11 | Bootstrap ADMIN account provisioning — how is the first credential set without ever hardcoding one in source? See docs/27 §19 Q2. | Phase 1.4 implementation | Phase 1.4 planning, 2026-09-23 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -495,6 +502,32 @@ treat this section as a substitute for either document.
   instruction following the independent verification pass — the same
   two-step pattern (Claude implements + reports, user reviews + approves)
   used for every phase so far.
+
+### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (PLANNING)
+
+**Full plan:** [27_PHASE_1_4_PLAN.md](27_PHASE_1_4_PLAN.md). Summary only
+here.
+
+- **Status: PLANNED, NOT approved, NOT implemented.** No code, dependency,
+  or schema change has been made for this phase.
+- **Scope (per docs/21 §10, unchanged from the frozen roadmap):** Login
+  screen, a local session mechanism, a role-gated 5-destination navigation
+  shell (Home · Visits · Referrals · Reports · More), route guarding, and a
+  minimal RBAC read model for nav visibility — plus one bootstrap ADMIN
+  account, since `users` is currently empty.
+- **Explicitly out of scope:** every feature from Phase 1.5 onward (School/
+  AWC Master, Micro Plan import, visit planning, screening, register photo/
+  OCR, cloud sync, reporting, treatment/follow-up), and a full User
+  Management CRUD screen (deferred to a later Admin-tools phase, never
+  scheduled yet).
+- **One open architectural question found during planning:** the frozen
+  `users` table has no credential column at all — authentication was
+  originally designed around Supabase Auth (external, not yet integrated).
+  Three options are laid out in docs/27 §7 (local hash in secure storage, no
+  schema change — recommended; a schema change requiring separate approval;
+  or deferring real login). **Not decided — see §10 items 10–11.**
+- **Next step:** you resolve docs/27 §19's open questions and approve the
+  plan before any implementation begins.
 
 ---
 
