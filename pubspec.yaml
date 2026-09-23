@@ -1,0 +1,36 @@
+name: referredline
+description: "RBSK Referred Line - offline-first school and AWC child health screening app"
+# Private application — never published to pub.dev.
+publish_to: 'none'
+
+# version: <build-name>+<build-number>
+# Android: build-name -> versionName, build-number -> versionCode.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+# Phase 1.1 dependency policy (docs/22_PHASE_1_1_PLAN.md §3.3):
+# ONLY packages actually used by the current phase are declared. Drift, Supabase,
+# secure storage, camera, PDF/Excel, sharing, connectivity and background work each
+# arrive with the phase that uses them, so no unused dependency can silently affect
+# build size, permissions or Gradle configuration.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management foundation (ProviderScope at the app root).
+  flutter_riverpod: ^3.0.3
+
+  # Declarative routing foundation.
+  go_router: ^17.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Lint gate — rules configured in analysis_options.yaml.
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
