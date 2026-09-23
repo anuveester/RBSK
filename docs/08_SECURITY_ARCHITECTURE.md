@@ -30,10 +30,19 @@ retrofitted.
 
 ## Data at rest
 
-- **Local device:** SQLite database encrypted via SQLCipher (Drift +
-  `sqlcipher_flutter_libs`). The encryption key is derived and stored via
-  `flutter_secure_storage`/Android Keystore — never hardcoded, never stored in plain
-  text alongside the database file.
+- **Local device:** SQLite database encrypted at rest, implemented and verified in
+  Phase 1.2 via Drift + `sqlite3` with the SQLite3MultipleCiphers native build
+  (`sqlite3mc`) — SQLCipher-*compatible* (same `PRAGMA key` mechanism, same cipher
+  family), selected via a `hooks.user_defines` block in `pubspec.yaml`, and
+  actively maintained. (The `sqlcipher_flutter_libs` package originally named here
+  reached end-of-life before implementation began and is no longer used — see the
+  note below.) The encryption key is a 256-bit value generated with
+  `Random.secure()`, stored only via `flutter_secure_storage`/Android Keystore —
+  never hardcoded, never logged, never stored in plain text alongside the database
+  file, and never committed to Git. Verified end-to-end: data written with the
+  correct key round-trips after reopening; the same file is unreadable with the
+  wrong key; `libsqlite3mc.so` is confirmed bundled in the built APK. Full detail:
+  [24_PHASE_1_2_REPORT.md](24_PHASE_1_2_REPORT.md) §C.
 - **Register photos (local):** stored in app-private external/internal storage (not the
   public gallery — matching the sibling project's precedent of not requesting the
   CAMERA permission's public-storage side effects), with no additional file-level

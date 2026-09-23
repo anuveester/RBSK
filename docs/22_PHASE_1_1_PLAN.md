@@ -84,11 +84,15 @@ agreed structure rather than inventing their own.
 | `go_router` | Routing infrastructure |
 | `flutter_lints` (dev) | Lint gate |
 
-**Deliberately not added yet:** `drift`, `sqlcipher_flutter_libs`, `supabase_flutter`,
-`flutter_secure_storage`, `camera`, `image_picker`, `pdf`, `printing`, `excel`,
-`share_plus`, `connectivity_plus`, `workmanager`, `uuid`. Each arrives with the phase
-that actually uses it, so an unused dependency never silently affects build size,
-permissions, or the Gradle configuration.
+**Deliberately not added yet:** `drift`, a local-DB-encryption package,
+`supabase_flutter`, `flutter_secure_storage`, `camera`, `image_picker`, `pdf`,
+`printing`, `excel`, `share_plus`, `connectivity_plus`, `workmanager`, `uuid`. Each
+arrives with the phase that actually uses it, so an unused dependency never
+silently affects build size, permissions, or the Gradle configuration.
+*(This entry named `sqlcipher_flutter_libs` at the time this plan was written;
+that package reached end-of-life before Phase 1.2 began implementing the database
+layer, which used `sqlite3` + SQLite3MultipleCiphers instead — see
+[24_PHASE_1_2_REPORT.md](24_PHASE_1_2_REPORT.md) §C.)*
 
 ## 4. Database work
 

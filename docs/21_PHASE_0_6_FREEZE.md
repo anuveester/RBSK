@@ -78,19 +78,39 @@ settled, what is deferred, and what Phase 1 should build.
 
 ## 3. Final domain model
 
-**Planning & reference:** `financial_years`, `plan_imports`, `schools`, `awcs`,
+**28 tables** in the frozen business schema (§Correction below), grouped here for
+readability — this section lists them by role, it does not itself define the
+schema (that's [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §2,
+the executable DDL, which is authoritative for both structure and count).
+
+**Planning & reference (10):** `financial_years`, `plan_imports`, `schools`, `awcs`,
 `holidays`, `disease_master`, `disease_aliases`, `referral_destinations`,
 `referral_destination_contexts`, `awc_checklist_items`.
 
-**Operational core:** `visit_plans` (+ `visit_status_history`), `screening_sessions`,
-`school_screenings` (+ `school_screening_findings`), `awc_screenings`
-(+ `awc_screening_findings`, `awc_screening_checklist_responses`), `treatment_records`.
+**Operational core (9):** `visit_plans`, `visit_status_history`, `screening_sessions`,
+`school_screenings`, `school_screening_findings`, `awc_screenings`,
+`awc_screening_findings`, `awc_screening_checklist_responses`, `treatment_records`.
 
-**Evidence & provenance:** `register_photos`, `register_photo_derivatives`, `ocr_jobs`,
+**Evidence & provenance (4):** `register_photos`, `register_photo_derivatives`, `ocr_jobs`,
 `ocr_results`.
 
-**Identity & governance:** `users`, `staff`, `staff_assignments`, `devices`,
-`audit_log`, plus the local-only `sync_queue`.
+**Identity & governance (5):** `users`, `staff`, `staff_assignments`, `devices`,
+`audit_log`.
+
+10 + 9 + 4 + 5 = **28**. `sync_queue` is deliberately **not** in this count — it's a
+local-only outbox table belonging to the sync engine
+([07_OFFLINE_SYNC_ARCHITECTURE.md](07_OFFLINE_SYNC_ARCHITECTURE.md)), out of scope
+for the business schema and for Phase 1.2.
+
+> **Correction (post-Phase 1.2):** this section previously grouped the same table
+> names without stating an explicit total, which read as inconsistent with a "24
+> tables" figure used elsewhere in early discussion of this document. The Phase 1.2
+> implementation audit counted the executable DDL directly (`grep` over every
+> `CREATE TABLE` in [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §2)
+> and found **28** tables. The DDL was treated as authoritative; this section has
+> been corrected to match it. No schema redesign occurred — see
+> [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §9 change log and
+> [24_PHASE_1_2_REPORT.md](24_PHASE_1_2_REPORT.md) for the full account.
 
 Invariants that must survive every later change:
 

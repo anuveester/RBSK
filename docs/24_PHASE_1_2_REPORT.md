@@ -24,14 +24,16 @@ started.
    and enumerated every `CREATE TABLE` statement with `grep`, independent of
    the document's own prose summary.
 5. **Discrepancy found and resolved during inspection, not silently:** the
-   freeze document's §3 "Final domain model" prose said "24 tables in four
-   groups." Direct enumeration of the DDL found **28** `CREATE TABLE`
-   statements. This is a documentation miscount in a summary paragraph, not a
-   contradiction in the schema itself — the DDL (the actual frozen artifact)
-   is internally consistent and was treated as authoritative. All 28 tables
-   are implemented; the miscount is noted here rather than corrected
-   silently in the frozen doc (that correction is a documentation matter for
-   your review, not a schema change).
+   freeze document's §3 "Final domain model" grouped table names by role
+   without stating an explicit total. Direct enumeration of the DDL found
+   **28** `CREATE TABLE` statements (`sync_queue` correctly excluded — it's a
+   local-only sync-engine table, not part of this business schema). This has
+   since been confirmed as the authoritative count
+   ([21_PHASE_0_6_FREEZE.md](21_PHASE_0_6_FREEZE.md) §3 now states it
+   explicitly, corrected post-Phase-1.2 — see
+   [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §9 change log
+   item 12). The DDL was treated as authoritative throughout; no schema
+   redesign occurred. All 28 tables are implemented.
 6. Catalogued every table's primary key, foreign keys, nullable/required
    columns, unique constraints (including partial/filtered ones), CHECK
    constraints, enums, audit fields, soft-delete fields, and append-only
@@ -317,11 +319,10 @@ commit — no Phase 1.3 scaffolding, no UI screens.
 ## J. Deviations and things worth your attention
 
 1. **Table-count discrepancy in `21_PHASE_0_6_FREEZE.md`** (§Inspection
-   item 5): that document's prose says "24 tables in four groups"; the DDL
-   itself has 28. Implemented all 28 per the DDL (the actual frozen
-   artifact). Recommend fixing the prose count in a documentation-only edit —
-   not done here since Phase 1.2 is a code phase and that number isn't part
-   of the schema itself.
+   item 5) — **RESOLVED**, post-review: `21_PHASE_0_6_FREEZE.md` §3 now
+   states the count explicitly (28) and
+   `04_DATABASE_ARCHITECTURE.md` §9 carries the change-log entry. Implemented
+   all 28 per the DDL throughout; no schema redesign occurred.
 2. **`sqlcipher_flutter_libs` → `sqlite3` + `sqlite3mc` hooks.** Covered in
    full in §C. This is a **package substitution, not an architecture
    change** — the encryption requirement, the `PRAGMA key` mechanism, and

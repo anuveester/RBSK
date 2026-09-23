@@ -881,3 +881,29 @@ query time — see [10_REPORTING_EXPORT_ARCHITECTURE.md](10_REPORTING_EXPORT_ARC
 10. `staff.qualification` added; OPT resolved to **Optometrist**.
 11. `holidays` gained remarks + soft-delete/audit columns;
     `visit_status_history.related_holiday_id` added.
+
+**Post-freeze documentation corrections** (no schema/DDL change in either item —
+both are corrections to prose *about* the schema, made after Phase 1.2 implemented
+and tested this document as written):
+
+12. **Table count.** Phase 1.2 implementation audit found that the frozen DDL
+    contains **28 tables**, while the Phase 0.6 prose summary
+    ([21_PHASE_0_6_FREEZE.md](21_PHASE_0_6_FREEZE.md) §3) incorrectly stated 24.
+    The DDL was treated as authoritative. No schema redesign occurred — see
+    [21_PHASE_0_6_FREEZE.md](21_PHASE_0_6_FREEZE.md) §3 and
+    [24_PHASE_1_2_REPORT.md](24_PHASE_1_2_REPORT.md) for the full account.
+13. **Local DB encryption package.** `sqlcipher_flutter_libs`, named in
+    [08_SECURITY_ARCHITECTURE.md](08_SECURITY_ARCHITECTURE.md) and
+    [05_TECHNOLOGY_STACK.md](05_TECHNOLOGY_STACK.md) at the time of the Phase 0.6
+    freeze, reached end-of-life before Phase 1.2 implementation began.
+    Phase 1.2 implemented and verified the current Drift-recommended replacement —
+    `sqlite3` + the SQLite3MultipleCiphers native build (`sqlite3mc`), selected via
+    a `hooks.user_defines` block — which is SQLCipher-compatible (same `PRAGMA key`
+    mechanism) and actively maintained. This is a dependency/implementation update,
+    not a domain or schema change: the encryption *requirement* in §0 and
+    [08_SECURITY_ARCHITECTURE.md](08_SECURITY_ARCHITECTURE.md) is unchanged. See
+    [08_SECURITY_ARCHITECTURE.md](08_SECURITY_ARCHITECTURE.md) §Data at rest and
+    [24_PHASE_1_2_REPORT.md](24_PHASE_1_2_REPORT.md) §C for the verified details
+    (256-bit `Random.secure()` passphrase, Android Keystore-backed
+    `flutter_secure_storage`, never hardcoded, never committed, `libsqlite3mc.so`
+    confirmed bundled in the built APK).

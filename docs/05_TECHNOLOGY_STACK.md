@@ -122,10 +122,31 @@ without sacrificing structure the way ad hoc `setState`/Provider would at 40+ sc
 | Camera / image picking | `camera` and/or `image_picker` |
 | Image compression | `image` (matches sibling project's downscale precedent) |
 | Secure local storage (keys/tokens) | `flutter_secure_storage` (Android Keystore-backed) |
-| Local DB encryption | `sqlcipher_flutter_libs` + Drift |
+| Local DB encryption | `sqlite3` + SQLite3MultipleCiphers (`sqlite3mc`) + Drift — see note below |
 | Connectivity detection | `connectivity_plus` |
 | Background sync trigger | `workmanager` (Android) |
 | UUID generation | `uuid` |
+
+> **Local DB encryption — implementation note (post-Phase 1.2):** this document
+> originally recommended `sqlcipher_flutter_libs`. That package reached end-of-life
+> before Phase 1.2 implementation began (pub.dev: "obsolete... update to version
+> 3.x of `package:sqlite3` instead"). Phase 1.2 implemented and verified the
+> current Drift-recommended replacement instead — the `sqlite3` package's native
+> SQLite3MultipleCiphers build (`sqlite3mc`), selected via a `hooks.user_defines`
+> block in `pubspec.yaml`. It is SQLCipher-*compatible* (same `PRAGMA key`
+> mechanism, same cipher family) and actively maintained.
+>
+> **OLD (originally planned, now obsolete):** `sqlcipher_flutter_libs`.
+> **CURRENT (implemented and verified):** `sqlite3` + SQLite3MultipleCiphers
+> (`sqlite3mc` / `libsqlite3mc.so`).
+>
+> This is a dependency/implementation update, not an architecture or domain
+> change — the encryption requirement itself (encrypted local storage, key never
+> hardcoded, key never committed) is unchanged. Full verification detail (256-bit
+> `Random.secure()` passphrase, Android Keystore-backed `flutter_secure_storage`,
+> wrong-key-rejection test, `libsqlite3mc.so` confirmed in the built APK):
+> [24_PHASE_1_2_REPORT.md](24_PHASE_1_2_REPORT.md) §C. Canonical change-log entry:
+> [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §9 item 13.
 
 ## Summary Recommendation
 
