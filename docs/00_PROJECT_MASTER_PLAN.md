@@ -25,14 +25,21 @@ PHASE STATUS:           IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION
                          b11abf2.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
                          Layer (APPROVED / CLOSED, unchanged by Phase 1.4).
-CURRENT TASK:           None — verification report delivered
-NEXT APPROVAL REQUIRED: Your explicit Phase 1.4 closure approval, including
-                         a decision on the KDF iteration count (§10 #16)
-BLOCKERS:               BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION
-                         USE: no PIN recovery for a sole Admin (§10 #13).
-                         Not a blocker for Phase 1.4 closure (no business
-                         data exists yet).
-LAST UPDATED:           2026-09-23 (Phase 1.4 independent verification)
+CURRENT TASK:           None — Security Decision Follow-up delivered
+                         (docs/30_AUTHENTICATION_RECOVERY_AND_KDF_DECISION.md,
+                         ANALYSIS/PROPOSAL only, nothing approved)
+NEXT APPROVAL REQUIRED: Your decisions in docs/30 §14 (KDF, PIN recovery
+                         architecture, DB-key fail-safe, Android backup
+                         policy, disaster recovery), and your Phase 1.4
+                         closure decision
+BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE (not
+                         Phase 1.4 closure): no PIN recovery (§10 #13);
+                         DB key can be silently deleted on a storage error
+                         (§10 #19); Android backup policy unset (§10 #18);
+                         no disaster-recovery path (§10 #21). Full list:
+                         docs/30 §13.
+PHASE 1.4 / 1.5:        Phase 1.4 NOT CLOSED. Phase 1.5 NOT STARTED.
+LAST UPDATED:           2026-09-24 (Security Decision Follow-up)
 ```
 
 ---
@@ -379,12 +386,15 @@ Phase 1.1 and reaffirmed at every phase since.
 | 7 | Is Aadhaar collection officially required for AWC screening? | AWC form phase (not yet scheduled) — field stays reserved/unused until answered | Phase 0.6 |
 | 8 | `S.I` register abbreviation — confirmed meaning? | OCR alias table population (not yet scheduled). **Per Phase 0.6 approval condition 2, this must never be assumed or seeded without confirmation.** | Phase 0.6 |
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
-| 13 | **PIN recovery for a sole Admin.** Phase 1.4 has none. Confirmed at verification: the verifier is written only at setup, and no reset or recover code exists. A forgotten sole-Admin PIN can only be recovered by clearing app data, which deletes the local database and its device-bound key, so all local data is lost. Android backup is not a recovery route either (#18). Needs a second Admin or an Admin reset flow. | **BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE** (not blocking Phase 1.4 closure — no business data exists yet) | Phase 1.4 implementation, 2026-09-23; confirmed at verification |
+| 13 | **PIN recovery for a sole Admin.** Phase 1.4 has none. Confirmed at verification: the verifier is written only at setup, and no reset or recover code exists. A forgotten sole-Admin PIN can only be recovered by clearing app data, which deletes the local database and its device-bound key, so all local data is lost. Android backup is not a recovery route either (#18). Needs a second Admin or an Admin reset flow. **Security Decision Follow-up (docs/30 §7–§8, §12):** data loss here is *not* cryptographically necessary, because the DB key doesn't depend on the PIN. The proposal is an Admin Recovery Code (R1) now and a second-Admin reset (R2) once user management exists. **PENDING YOUR APPROVAL.** | **BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE** (not blocking Phase 1.4 closure — no business data exists yet) | Phase 1.4 implementation, 2026-09-23; confirmed at verification; analyzed 2026-09-24 |
 | 14 | Session inactivity re-lock — docs/08 recommends PIN re-entry after inactivity on shared devices; the duration is an undecided policy, so none was implemented. | Hardening before rollout | Phase 1.4 implementation, 2026-09-23 |
 | 15 | In-app creation of Medical Officer / Team Member accounts (user management) — no phase number assigned. Until then only the first-run Admin can log in on a device. | Multi-user use on a real device | Phase 1.4 implementation, 2026-09-23 |
-| 16 | **KDF iteration count needs your decision.** The implementation uses 210,000 PBKDF2-HMAC-SHA256 iterations; OWASP's current recommendation (re-checked at verification) is 600,000, so 210,000 is 35% of it. This does not violate the approved "slow KDF, not a fast hash" decision, but its performance justification is unmeasured: no device is available, and the only measurement is about 1.7 s per derivation in the debug test VM, which isn't representative of a phone. Accept it as a documented trade-off, or raise it, ideally after an on-device benchmark. No migration is needed either way. | Your Phase 1.4 closure decision; rollout readiness | Phase 1.4 implementation; decision framing at verification, 2026-09-23 |
+| 16 | **KDF iteration count needs your decision.** The implementation uses 210,000 PBKDF2-HMAC-SHA256 iterations; OWASP's current recommendation (re-checked at verification) is 600,000, so 210,000 is 35% of it. This does not violate the approved "slow KDF, not a fast hash" decision, but its performance justification is unmeasured: no device is available, and the only measurement is about 1.7 s per derivation in the debug test VM, which isn't representative of a phone. Accept it as a documented trade-off, or raise it, ideally after an on-device benchmark. No migration is needed either way. | Your Phase 1.4 closure decision; rollout readiness. **Follow-up (docs/30 §4–§6):** in this architecture the KDF protects the PIN value, not the data; no iteration count makes a 6-digit PIN offline-resistant. Proposed: keep PBKDF2, target 600,000 gated on an on-device benchmark, add re-hash on login; 210,000 stays in force until then. **PENDING YOUR APPROVAL.** | Phase 1.4 implementation; decision framing at verification, 2026-09-23; analyzed 2026-09-24 |
 | 17 | Cross-device propagation of user deactivation and role changes | Depends on the unscheduled sync phase (§10 item 6 / docs/07) | Phase 1.4 analysis (docs/28 §6), 2026-09-23 |
-| 18 | **Android backup policy.** `AndroidManifest.xml` sets no backup rules, so Android's default auto-backup applies. Keystore keys are device-bound and not restored, so secure-storage values restored elsewhere (the database key since Phase 1.2, and PIN verifiers and sessions since 1.4) can't be decrypted. Post-restore behavior is unverified. Encrypted local data leaving the device through backup also bears on data residency (#6). Needs a deliberate policy, e.g. disabling backup or defining backup rules. | Before rollout; predates Phase 1.4 | Phase 1.4 verification, 2026-09-23 |
+| 18 | **Android backup policy.** `AndroidManifest.xml` sets no backup rules, so Android's default auto-backup applies. Keystore keys are device-bound and not restored, so secure-storage values restored elsewhere (the database key since Phase 1.2, and PIN verifiers and sessions since 1.4) can't be decrypted. Post-restore behavior is unverified. Encrypted local data leaving the device through backup also bears on data residency (#6). Needs a deliberate policy, e.g. disabling backup or defining backup rules. | Before rollout; predates Phase 1.4. **Follow-up (docs/30 §10):** confirmed in the merged APK manifest that no backup rules exist. The DB file (`app_flutter/`) and the secure-storage prefs are backup-eligible, and restored copies can't be decrypted (UNVERIFIED on a device). Proposed policy: disable cloud backup **and** device-to-device transfer (`allowBackup="false"` + `dataExtractionRules`). **PENDING YOUR APPROVAL.** | Phase 1.4 verification, 2026-09-23; analyzed 2026-09-24 |
+| 19 | **Database-key fail-safe (new finding, predates Phase 1.4).** `flutter_secure_storage` 11.2.0 defaults to `resetOnError: true`, which **silently deletes** secure-storage entries it can't decrypt. `DatabaseKeyManager` then generates a **new** key over the existing encrypted database, which makes the data permanently unreadable. Proposed R3 (docs/30 §12): `resetOnError: false` for the DB key, never regenerate a key when a DB file exists, and keep the DB key separate from auth state. **PENDING YOUR APPROVAL.** | **Before real child/health data** | Security Decision Follow-up, 2026-09-24 |
+| 20 | **Documentation correction pending.** docs/27 §0.1 and the `credential_hasher.dart` comment say Argon2 was rejected because the Dart options are native-binding based. That's wrong: `pointycastle` 4.0.0 (already a dependency) includes pure-Dart Argon2id (docs/30 §3). Correct it when the KDF decision is implemented; this analysis-only task authorized no source or docs/27 edits. | KDF implementation | Security Decision Follow-up, 2026-09-24 |
+| 21 | **Disaster recovery.** No off-device copy of data or key exists, so device loss, reset, or key loss means loss of all digital data on that device. Proposed R5 (docs/30 §12): an Admin-triggered Encrypted Recovery Package under a separate high-entropy secret, as already anticipated by docs/04 §6 and docs/08. The alternative is an explicit acceptance of the loss, with the paper register as fallback. **PENDING YOUR DECISION.** | **Before real child/health data** | Security Decision Follow-up, 2026-09-24 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -417,6 +427,7 @@ Phase 1.1 and reaffirmed at every phase since.
 | Future government format changes (Job Aid revision, new referral facility types) | Could require new Disease Master rows or referral destinations | Both are versioned/configuration data, not enum values baked into code — additive by design | **Low, mitigated by design** |
 | Sole Admin forgets PIN — no in-app recovery in Phase 1.4 (§10 #13) | Recovering means clearing app data, which loses local data | No business data exists yet; a recovery path must exist before real data entry | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE** (not blocking Phase 1.4 closure) |
 | Local credential strength — 210,000 PBKDF2 iterations (below OWASP's current 600,000), not yet benchmarked on a device (§10 #16) | Lower resistance if a stored verifier is extracted from a compromised device | Keystore-backed storage, per-credential salt; count embedded per verifier so it can be raised without migration | **Active, documented trade-off** |
+| Silent loss of the database key: the default `resetOnError: true` deletes undecryptable secure-storage entries, and `DatabaseKeyManager` then overwrites the key with a new one (§10 #19) | Permanent, unannounced loss of all local data after a Keystore/storage fault or an OS restore | Proposed R3 fail-safe (docs/30 §12); pending approval | **Active — before real data** |
 | Real-disk encryption tests are I/O-timing sensitive (observed 0–24 s for one test with no code change) | Spurious timeouts under parallel CPU load | Explicit 2-minute timeout on the two real-disk tests (Phase 1.4, assertions unchanged — docs/29 §12) | **Mitigated** |
 | Two count discrepancies of the same class both found and resolved (24→28; Disease Master 29→37) | Suggests summary/prose sections in early docs are more error-prone than the underlying DDL/source tables | Direct re-enumeration against source, not summary prose, is now the standing practice for any count claim (this document follows it throughout) | **Resolved both instances; process fix applied going forward — watch for a third instance in any future summary figure** |
 
@@ -568,7 +579,14 @@ treat this section as a substitute for either document.
   until user management exists; no PIN recovery (§10 #13); KDF not yet
   benchmarked on a device (§10 #16); no inactivity re-lock (§10 #14); no
   real-device verification yet.
-- **Phase 1.5 not started.**
+- **Security Decision Follow-up (2026-09-24):**
+  [30_AUTHENTICATION_RECOVERY_AND_KDF_DECISION.md](30_AUTHENTICATION_RECOVERY_AND_KDF_DECISION.md)
+  analyzes the KDF, PIN recovery, database-key recovery, and Android
+  backup/restore, and proposes a layered recovery architecture (R1–R6).
+  **Analysis and proposal only; no decision is approved.** It added new
+  TBDs §10 #19–#21. It changed no code, schema, dependency, or
+  configuration.
+- **Phase 1.4 NOT CLOSED. Phase 1.5 not started.**
 
 ---
 
