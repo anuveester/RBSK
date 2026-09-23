@@ -100,6 +100,13 @@ void main() {
     });
   });
 
+  // Real-disk tests: each encrypted open creates all 28 tables on disk, so
+  // runtime depends on disk/antivirus activity rather than the code. The
+  // wrong-key test was observed at 1–9s on a12227d and 0–24s on the Phase
+  // 1.4 branch, with its code path unchanged, and exceeded the default 30s
+  // once under a full parallel run. Timeout only — assertions unchanged.
+  const realDiskTimeout = Timeout(Duration(minutes: 2));
+
   group('openEncryptedDatabase — real encrypted file on disk', () {
     late Directory tempDir;
 
@@ -145,6 +152,7 @@ void main() {
         expect(rows, hasLength(1));
         expect(rows.single.label, '2025-26');
       },
+      timeout: realDiskTimeout,
     );
 
     test(
@@ -187,6 +195,7 @@ void main() {
         );
         await db2.close();
       },
+      timeout: realDiskTimeout,
     );
   });
 }
