@@ -55,7 +55,15 @@ final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
 
   await DatabaseSecurityAuditLog(database).flushPending(journal);
   return database;
-});
+}, retry: noAutomaticRetry);
+
+/// Retry policy for the database and every provider that reads it: never
+/// retry automatically. A locked database is retried only when the user
+/// taps "Try again" (docs/35_PHASE_1_5_PLAN.md §11). Riverpod's default
+/// would re-open it up to 10 times (journalling each failure), and each
+/// dependent provider would retry the rethrown error for about 40 seconds,
+/// showing a spinner instead of the "data is locked" message.
+Duration? noAutomaticRetry(int retryCount, Object error) => null;
 
 final Expando<Future<void>> _closing = Expando<Future<void>>();
 
