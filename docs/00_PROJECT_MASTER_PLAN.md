@@ -469,7 +469,7 @@ none of that code exists any more.
 | Security hardening (docs) | `f75b7e0` | Report, decision outcomes, Master Plan | 2026-09-24 |
 | Final security review | `07e6807` | Service-level authorization, atomic crash-safe restore, full-disk hang, screen/keyboard/clipboard, audit replay, leftovers; tests; docs/31 §20, docs/32 | 2026-09-24 |
 | Device validation (docs) | `24ce578`, `83af343`, `6b40cec`, `95b3281`, `fb5b403`, `56bb449` | Operator guide, validation report, Groups A–C results on one phone | 2026-09-24 |
-| **Authentication removal** | the commit that removes `lib/features/auth` (see `git log`) | The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Also removed: RBAC read model, user repository, recovery package/backup/restore, security audit writer, `pointycastle` | 2026-09-24 |
+| **Authentication removal** | `2854fe4` | The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Also removed: RBAC read model, user repository, recovery package/backup/restore, security audit writer, `pointycastle` | 2026-09-24 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
