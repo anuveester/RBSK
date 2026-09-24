@@ -1,7 +1,7 @@
 # Real-Device Security Validation Report: Phase 1.4
 
-> **STATUS: IN PROGRESS — Groups A and B run on one physical phone
-> (2026-09-24). Groups C–K NOT RUN.** This report is filled in only from tests actually
+> **STATUS: IN PROGRESS — Groups A, B and C run on one physical phone
+> (2026-09-24). Groups D–K NOT RUN.** This report is filled in only from tests actually
 > performed on a real Android phone (driven over ADB, with the tester
 > holding the phone). Nothing here is marked PASS on the basis of
 > automated tests or assumption.
@@ -142,6 +142,13 @@ attempt was made. The helper was fixed and B1 re-run.
   Group C).
 - **End state:** logged in, on Home.
 
+### 5.0c Group C (phone 1), REAL DEVICE VERIFIED
+
+| Test | Result | Summary |
+|---|---|---|
+| **C1** Login timing | **PASS: measurement completed** (a measurement; there is no pass/fail threshold) | 5 counted logins: **5,038–5,068 ms** from tap to Home (median 5,049 ms). The UI stayed responsive: **no frame gap above 16.6 ms**. Detail in §9. |
+| **C2** PIN-confirmation timing | **NOT RUN** | The guide places this measurement **during E2** (export → PIN confirm → save screen). That needs Group E actions (Backup Recovery Key setup and export), which were out of scope for this run. To be measured in E2 if approved. |
+
 ### 5.1 Pre-test inspection findings: checklist vs. implementation
 
 These were found while preparing. None is a security defect in the
@@ -163,7 +170,8 @@ tested flows. They change **how** some tests can be done.
 
 ## 6. PASS count
 
-9 (A1–A3, B1–B6), phone 1 only.
+10 (A1–A3, B1–B6, C1), phone 1 only. C1 is a completed measurement,
+not a threshold pass.
 
 ## 7. FAIL count
 
@@ -172,21 +180,105 @@ fault, and the clean re-run passed.)
 
 ## 8. NOT RUN count
 
-Everything except Groups A and B: C, D, E, F, G, H (except the A2
-screenshot check), I, J, K.
+C2 (deferred to E2), plus Groups D, E, F, G, H (except the A2 screenshot
+check), I, J and K.
 
 ## 9. KDF timing
 
-**NOT RUN.** Current setting (unchanged): PBKDF2-HMAC-SHA256, 210,000
-iterations, 16-byte salt, 32-byte key, computed off the UI thread (a
-background isolate).
+**Setting under test (unchanged during and after the test):**
 
-| Phone | 5 login times (tap → Home) | Median | UI responsive? |
-|---|---|---|---|
-| — | — | — | — |
+- PBKDF2-HMAC-SHA256, **210,000** iterations, 16-byte salt, 32-byte key;
+- computed with `pointycastle` in a background isolate
+  (`verifyCredentialInBackground`);
+- the release APK from §3.
 
-No figure for any other iteration count (e.g. 600,000) will be inferred
-from these results.
+No source code or security parameter was changed.
+
+### 9.1 Method
+
+The measurement follows the guide's C1 definition: from tapping
+**Log in** until **Home** appears. It uses the phone's own clock instead of
+a stopwatch:
+
+- **Tap time:** `EventTime` of the `TYPE_VIEW_CLICKED` accessibility event
+  on "Log in" (`adb shell uiautomator events`, device uptime ms).
+- **Home time:** `EventTime` of the first `TYPE_WINDOW_STATE_CHANGED`
+  event whose text is "Home" (the new route's first semantics update).
+- **UI responsiveness:** frame presentation timestamps of the app's
+  Flutter SurfaceView layer (`dumpsys SurfaceFlinger --latency`, polled
+  about every 0.5 s, merged). The gaps between frames between the tap and
+  Home were examined.
+
+Each run went as follows:
+
+1. log out;
+2. select Test Admin 001 and type Test PIN 1 (only a validated 6-digit
+   string; never printed);
+3. hide the keyboard;
+4. start capture, tap Log in, wait for Home.
+
+One **trial run** (tool validation, not counted) measured 5,119 ms.
+
+**Conditions:**
+
+- Nothing A059, Snapdragon SM7635, Android 16;
+- display at 60 Hz (16.67 ms refresh period reported by SurfaceFlinger);
+- screen on, **charging (AC)**, battery 70% → 72%, battery temperature
+  37.0 → 36.0 °C, thermal status 1 (light) before and after;
+- an accessibility client (`uiautomator`) was connected during each
+  measurement;
+- no stay-awake setting was used, and nothing touched the screen during a
+  measurement.
+
+### 9.2 Raw evidence
+
+| Run | Tap `EventTime` (ms) | Home `EventTime` (ms) | Tap → Home (ms) | Frames in window | Largest frame gap | Gaps > 50 ms / > 100 ms | First frame after tap |
+|---|---|---|---|---|---|---|---|
+| 1 | 182373026 | 182378066 | **5040** | 301 | 16.6 ms | 0 / 0 | 57 ms |
+| 2 | 182407395 | 182412433 | **5038** | 301 | 16.6 ms | 0 / 0 | 53 ms |
+| 3 | 182441632 | 182446681 | **5049** | 301 | 16.6 ms | 0 / 0 | 64 ms |
+| 4 | 182475778 | 182480845 | **5067** | 303 | 16.6 ms | 0 / 0 | 50 ms |
+| 5 | 182510108 | 182515176 | **5068** | 303 | 16.6 ms | 0 / 0 | 52 ms |
+
+**Summary:** N = 5; min 5,038 ms; **median 5,049 ms**; mean 5,052 ms;
+max 5,068 ms; population SD 13 ms.
+
+Raw capture files are kept outside the repository (they contain no PIN;
+checked: no 6-digit sequence).
+
+### 9.3 Interpretation (documented; **no decision taken**)
+
+**Measured facts:**
+
+- On this phone, a successful login takes about **5.05 s** from tap to
+  Home, with a tight spread (±15 ms).
+- The UI **stays fully responsive** throughout. Frames are presented every
+  16.6 ms (the display rate) during the whole wait, with no gap above one
+  frame, and the first frame after the tap arrives within 50–64 ms. There
+  is no visible freeze.
+
+**Not isolated:** the 5.05 s includes more than the KDF:
+
+- one PBKDF2 verification, including isolate start-up;
+- about 4 secure-storage (Android Keystore) operations;
+- one database write (last login);
+- the navigation to Home.
+
+How much of the total is the KDF alone was **not measured**. Measuring it
+would need instrumented code, which was not added.
+
+**Implications, for review:**
+
+- About 5 s per login is long for repeated field use. The same cost
+  applies to every PIN re-check (export, replacing codes; see C2) and to
+  the recovery-code check.
+- Slower (low-end) phones were **not** measured, and nothing is inferred
+  for them. **Nothing is inferred for 600,000 iterations.**
+- A **hypothesis for review, not a measured finding:** much of the cost
+  may come from the pure-Dart HMAC-SHA256 implementation rather than the
+  iteration count itself. A platform or native implementation might
+  reach the same iteration count faster. Any change is a decision for the
+  project owner. **The 210,000 setting is unchanged.**
 
 ## 10. Recovery results (Group D)
 
