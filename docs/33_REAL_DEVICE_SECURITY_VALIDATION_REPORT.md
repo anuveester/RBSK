@@ -23,7 +23,7 @@ The underlying checklist is [32_REAL_DEVICE_SECURITY_TEST_CHECKLIST.md](32_REAL_
 
 ## 1. Device details
 
-**Not yet provided.** Requested fields:
+Phone 1 details were read over ADB (`getprop`, `df`). Whether a second phone is available has not been stated. Requested fields:
 
 - manufacturer;
 - model;
