@@ -52,10 +52,21 @@ Answers to §19's remaining questions, decided at implementation time:
 Dart, so it adds no second native build step (the project already carries
 one, `sqlite3mc`). It is widely used (about 3.66M downloads, 415 likes) and
 provides PBKDF2 as a standard, documented derivator. The `bcrypt` package
-was also considered but has far less usage (about 50k downloads). Argon2 was
-not chosen because the maintained Dart options rely on native bindings,
-which would repeat the native-build fragility the project already hit with
-`sqlcipher_flutter_libs`.
+was also considered but has far less usage (about 50k downloads).
+
+**Correction (security hardening, 2026-09-24):** this paragraph originally
+said Argon2 was not chosen because the maintained Dart options rely on
+native bindings. **That was wrong.** `pointycastle` 4.0.0, the dependency
+chosen here, includes pure-Dart Argon2 (including Argon2id). The actual
+reasons PBKDF2 was kept are in docs/30 §4.4:
+- no KDF makes a 6-digit PIN resistant to offline exhaustion;
+- the verifier is only reachable by an attacker who can already read the
+  database key;
+- pure-Dart Argon2id performance and memory on target devices are
+  unmeasured.
+
+The KDF decision was re-approved as PBKDF2 with 210,000 iterations "for
+now", with the parameters now centralized and upgradable (docs/31 §9).
 
 **Why 210,000 iterations, not OWASP's current 600,000:** OWASP's Password
 Storage Cheat Sheet (2023) recommends 600,000 iterations for

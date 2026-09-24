@@ -1,10 +1,33 @@
 # Authentication Recovery, Database-Key Recovery, Android Backup, and KDF — Decision Analysis
 
-> **Status: ANALYSIS / PROPOSAL ONLY. Nothing in this document is approved.**
-> Every "Proposed decision" below waits for your explicit approval. No source
-> code, schema, dependency, authentication, encryption, or Android
-> configuration was changed to produce it. Phase 1.4 remains **NOT CLOSED**.
-> Phase 1.5 remains **NOT STARTED**.
+> **Outcome (2026-09-24).** Decisions were approved and implemented as
+> security hardening within Phase 1.4 (commit `f27d85b`; report:
+> [31_SECURITY_HARDENING_REPORT.md](31_SECURITY_HARDENING_REPORT.md)).
+> Phase 1.4 remains **NOT CLOSED**; Phase 1.5 remains **NOT STARTED**. The
+> analysis below (§1–§16) is unchanged from when it was written, except
+> where this box says otherwise.
+>
+> | §14 decision | Status |
+> |---|---|
+> | 1. KDF | **APPROVED FOR NOW:** PBKDF2-HMAC-SHA256, 210,000 iterations, 16-byte salt, 32-byte key. **Not** raised to 600,000; that waits for a real-device benchmark. **IMPLEMENTED:** centralized policy, versioned verifiers, re-hash after login, a failed re-hash keeps the old verifier. |
+> | 2. Latency budget | **OPEN** — to be set together with the device benchmark. |
+> | 3. PIN recovery (R1; R2 later) | **APPROVED + IMPLEMENTED:** R1 Admin Recovery Code. R2 (second-Admin reset) still needs user management — **FUTURE**. |
+> | 4. Recovery code custody | **OPEN** — operational; who keeps the codes is not something the app can decide. |
+> | 5. Database-key fail-safe (R3) | **APPROVED (as a mandatory fix) + IMPLEMENTED.** |
+> | 6. Android backup policy | **APPROVED: "controlled encrypted backup". IMPLEMENTED** as policy 6 (1 + 4): platform backup and device-to-device transfer disabled; the app's own encrypted recovery package is the backup. |
+> | 7. Disaster recovery (R5) | **APPROVED + IMPLEMENTED:** Encrypted Recovery Package. |
+> | 8. Separate secrets | **IMPLEMENTED AS PROPOSED** (Admin Recovery Code ≠ Backup Recovery Key). The approval did not address this point explicitly; **please confirm.** |
+> | 9. Inactivity re-lock | **OPEN** — not implemented. |
+> | 10. Where the work goes | **DECIDED:** security hardening within Phase 1.4 scope. |
+> | 11. Phase 1.4 closure | **OPEN** — awaiting your review. |
+>
+> Section 12's proposed architecture was implemented with one refinement:
+> after a restore, an Admin's PIN is set on the new phone using the Backup
+> Recovery Key, and only while no Admin can log in there (credentials never
+> travel in a package). Details and remaining limitations: docs/31.
+>
+> *Original status line, kept for the record:* ANALYSIS / PROPOSAL ONLY —
+> nothing in this document was approved when it was written.
 
 Prepared 2026-09-24, as the Security Decision Follow-up to the Phase 1.4
 independent verification ([29_PHASE_1_4_REPORT.md](29_PHASE_1_4_REPORT.md)

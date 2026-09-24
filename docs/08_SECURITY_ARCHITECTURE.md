@@ -3,6 +3,30 @@
 Child health data is sensitive by default; this app is designed security-first, not
 retrofitted.
 
+## Implemented today (Phase 1.4 + security hardening, 2026-09-24)
+
+This file's sections below describe the original target design (cloud
+identity via Supabase). What is actually built today is device-local:
+
+- **Authentication:** a 6-digit PIN per user, verified on the phone against
+  a PBKDF2-HMAC-SHA256 verifier (210,000 iterations; versioned and
+  upgradable) in Android Keystore-backed secure storage. No credential is
+  stored in the database, no cloud identity exists, and credentials never
+  sync or leave the phone. See docs/27 §0, docs/28, docs/31.
+- **Recovery:** a forgotten Admin PIN is reset with the Admin Recovery Code
+  (128-bit, shown once, single-use, rate-limited, audited). This never
+  touches the database or its key.
+- **Database key:** random 256-bit, in its own secure-storage namespace. It
+  is never silently replaced or deleted. A missing or unreadable key stops
+  the app with a plain-language "data is locked, not deleted" screen.
+- **Backup:** Android platform backup and device-to-device transfer are
+  disabled. The only backup is the app's own Encrypted Recovery Package:
+  the database stays encrypted, and its key is AES-256-GCM-wrapped under a
+  key derived from the separate Backup Recovery Key. The package is
+  Admin-created and saved through Android's document picker.
+- **Audit:** security events are recorded in `audit_log` (docs/04 §2.11)
+  without secrets.
+
 ## Authentication
 
 - Supabase Auth (email/password, or phone+OTP if preferred once confirmed) — no
@@ -83,7 +107,11 @@ retrofitted.
 - Cloud: provider-managed automated backups (tier/retention TBD — budget decision, see
   [12_RISKS_OPEN_QUESTIONS.md](12_RISKS_OPEN_QUESTIONS.md)).
 - Local: ADMIN-triggered manual encrypted export as a disaster-recovery fallback (see
-  [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §6).
+  [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §6). **Implemented**
+  as the Encrypted Recovery Package (docs/31 §6–§7). Android platform backup
+  is deliberately disabled so it can never become an uncontrolled copy
+  (docs/31 §8). Where packages are kept is a custody/data-residency question
+  still open (docs/00 §10).
 
 ## Data residency — open question, not an assumption
 
