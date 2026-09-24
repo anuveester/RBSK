@@ -1,10 +1,10 @@
 # Real-Device Security Validation Report: Phase 1.4
 
-> **STATUS: PREPARED — NO PHYSICAL-DEVICE TEST HAS BEEN PERFORMED YET.**
-> Every device result below is **NOT RUN**. This report is filled in only
-> from results reported by the person testing on a real Android phone.
-> Nothing here may be marked PASS on the basis of automated tests or
-> assumption.
+> **STATUS: IN PROGRESS — Group A run on one physical phone (2026-09-24).
+> Groups B–K NOT RUN.** This report is filled in only from tests actually
+> performed on a real Android phone (driven over ADB, with the tester
+> holding the phone). Nothing here is marked PASS on the basis of
+> automated tests or assumption.
 >
 > Phase 1.4 remains **OPEN**. Phase 1.5 has **NOT started**.
 
@@ -38,14 +38,16 @@ account passwords, phone unlock PIN.
 
 | Field | Phone 1 | Phone 2 |
 |---|---|---|
-| Manufacturer / model | — | — |
-| Android version | — | — |
-| Free storage | — | — |
-| Spare or personal | — | — |
+| Manufacturer / model | Nothing, model `A059` (from `ro.product.*`) | — |
+| Android version | 16 (SDK 36), security patch 2026-08-01, build `B4.1-260810-1153`, arm64-v8a | — |
+| Free storage | 101 GB free of 225 GB | — |
+| Keyboard | Gboard | — |
+| Spare or personal | Not stated; treated as **personal** (other apps present), so no spare-only tests | — |
+| Connection | USB, USB debugging ON, already authorized | — |
 
 ## 2. Android version
 
-See §1. Not yet provided.
+Android 16 (SDK 36); see §1.
 
 ## 3. APK version / build
 
@@ -75,11 +77,42 @@ not need to know the phone's CPU type.
 
 ## 4. Test date
 
-Not yet tested. Preparation: 2026-09-24.
+2026-09-24 (Group A). Preparation: 2026-09-24.
 
 ## 5. Tests executed
 
-None on a device yet.
+### 5.0 Group A (phone 1), REAL DEVICE VERIFIED
+
+The app was installed with `adb install` and driven with `adb shell input`
+and `uiautomator`. Screen dumps were streamed to the host, never stored on
+the phone, and recovery codes were masked before any output. The tester
+unlocked the phone, read and wrote down the Recovery Code on paper, and
+did the physical screenshot check.
+
+**Harness incident (first attempt, discarded).** In the first run, the
+synthetic test-PIN file on the host had Windows CRLF line endings, so a
+hidden carriage return was typed after each PIN. In that run the
+"mismatched PIN" step created the Admin instead of being refused. The
+cause was **not** proven at the time, so the run was stopped and reported.
+On instruction, the app was **uninstalled and reinstalled clean**, and the
+harness was changed to type only strings matching `^[0-9]{6}$`, with the
+field contents checked before each Create. In the clean run the mismatch
+**was refused** (below). The anomaly is therefore attributed to the
+harness. No app code was changed.
+
+| Test | Result | Observed |
+|---|---|---|
+| **A1** Fresh install | **PASS** | Clean reinstall after `adb uninstall`. APK SHA-256 matches §3. `Success`, versionName 1.0.0 / versionCode 1, minSdk 26 / targetSdk 36. Package flags `[HAS_CODE, ALLOW_CLEAR_USER_DATA]`: **no `ALLOW_BACKUP`, not debuggable** (platform backup off, confirmed on device). Launches with no crash (crash buffer and `E/flutter` empty). App info shows **"RBSK Referred Line"** with the Flutter default icon. First screen: **"Set up Administrator"**. |
+| **A2** First Admin setup | **PASS** | Name "Test Admin 001". **5-digit PIN** in both fields → "PIN must be exactly 6 digits.", PIN fields cleared. **Mismatched 6-digit PINs** (6 dots in each field, confirmed by screenshot before Create) → **"The two PINs do not match."**; still on setup, **no Admin created**. Matching 6-digit PINs → "Keep this code safe" with the AR code (masked in all output). **FLAG_SECURE:** the `adb screencap` of the code screen was 99.95% black, and the tester's **physical screenshot (Power + Volume-down) was blocked**. **Continue:** disabled initially; still disabled after only the tick; still disabled with a wrong last group; **enabled only with the correct last 3 characters** → Home (5 tabs). The tester wrote the code on paper; it was never sent in chat. After leaving the code screen, a capture of Home was normal (0.2% black): protection is released. |
+| **A3** Restart / session restore | **PASS** | `am force-stop` (process ended), then relaunch (new PID) → **opened directly to Home**. No "data locked" error, so the encrypted database opened with the stored key. More shows no "Recovery Code needs attention" warning (the confirmation persisted). **More → Log out** → login screen lists **Test Admin 001**, "Log in" is disabled until a PIN is entered, and there is no restore banner. No crash at any point. |
+
+**Observation (not a defect of this build; recorded for the risk
+register).** `uiautomator` could read the Recovery Code text through
+Android's **accessibility** tree while FLAG_SECURE was blocking screen
+capture. This is standard Android behaviour: FLAG_SECURE does not hide
+content from accessibility services. The harness masked it. Implication:
+a malicious app granted accessibility permission could read codes on
+screen. This is not verified further, and nothing was changed.
 
 ### 5.1 Pre-test inspection findings: checklist vs. implementation
 
@@ -102,15 +135,17 @@ tested flows. They change **how** some tests can be done.
 
 ## 6. PASS count
 
-0
+3 (A1, A2, A3), phone 1 only.
 
 ## 7. FAIL count
 
-0
+0. (The discarded first attempt is described in §5.0; it was a harness
+fault, and the clean re-run passed.)
 
 ## 8. NOT RUN count
 
-All. No device test has been performed.
+Everything except Group A: B, C, D, E, F, G, H (except the A2
+screenshot check), I, J, K.
 
 ## 9. KDF timing
 
