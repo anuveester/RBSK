@@ -27,7 +27,8 @@ PHASE STATUS:           The Phase 1.4 authentication implementation was
                          NOT CLOSED.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
                          Layer (APPROVED / CLOSED, unchanged).
-CURRENT TASK:           None — authentication removal done (§12), awaiting
+CURRENT TASK:           None — authentication removal done; backup/restore
+                         infrastructure restored without UI (§12), awaiting
                          your review
 NEXT APPROVAL REQUIRED: Review of the removal; Phase 1.4 closure decision /
                          next phase
@@ -229,9 +230,9 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | Encrypted local database | **DONE, tested, verified in the built APK** (Phase 1.2) |
 | Secure key storage | **DONE, tested** (Android Keystore via `flutter_secure_storage`, Phase 1.2). Hardened: `resetOnError` off everywhere; DB key in its own namespace; never regenerated over an existing database (`f27d85b`) |
 | Cloud security (RLS, TLS) | Architecture: DONE. Implementation: NOT STARTED (cloud/sync phase not yet scheduled) |
-| Audit log | Schema: DONE. No writer exists: the security-event writer was removed together with authentication (2026-09-24). Business-row write path (INSERT/UPDATE/SOFT_DELETE for business tables): NOT STARTED |
+| Audit log | Schema: DONE. **Security-event writer: restored with the backup/restore infrastructure** (backup, import, database recovery, database-key-unavailable and restore rollback events; authentication events removed for good), with a journal for events that happen while the database cannot be opened. Business-row write path (INSERT/UPDATE/SOFT_DELETE for business tables): NOT STARTED |
 | Soft delete/archive | Schema: DONE, tested (Phase 1.2) |
-| Backup/recovery | **No in-app backup or recovery.** The Encrypted Recovery Package and the Admin Recovery Code were removed together with authentication (2026-09-24); backup/recovery will be redesigned with the new authentication (§10 #29). **Retained:** the database-key fail-safe (a key is never silently deleted or regenerated over an existing database), and Android platform backup / device transfer stay disabled. Cloud backup: NOT STARTED |
+| Backup/recovery | **Infrastructure: DONE, tested — restored 2026-09-24 after the authentication removal.** Encrypted Recovery Package (database stays encrypted; its key AES-256-GCM-wrapped under HKDF of the separate Backup Recovery Key), export, verified import, crash-safe all-or-nothing restore with start-up recovery, and the restore safety rule (§7). **No user interface and no authorization yet:** nothing in the app exposes backup or restore; both come after the authentication redesign (§10 #28, #29). **Removed for good:** the Admin Recovery Code, the Admin-PIN check before export, and "set Admin PIN after restore". Database-key fail-safe: DONE, tested. Android platform backup / device transfer: disabled. Cloud backup: NOT STARTED |
 
 ### Sync
 | Feature | Status |
@@ -254,7 +255,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| **Phase 1.4** | **AUTHENTICATION REMOVED (2026-09-24) — NOT CLOSED** | Delivered and retained: the 5-destination navigation shell, the database-key fail-safe, Android backup/device-transfer exclusions. **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** History (no longer in the code): local PIN authentication, RBAC read model, route guards, Admin Recovery Code, Encrypted Recovery Package, security audit and their reviews (docs/27–34). After removal: 97/97 tests, analyze clean, APK builds, schema unchanged. | 2026-09-23/24 | `30d89f5`, `cbb225b`, `b797ac3`, `09f4b0b`, `4fe2e06`, `b11abf2`, `0162ff3`, `bffba3d`, `f27d85b`, `f75b7e0`, `07e6807` (history); removal commit (§12) | docs/27–34 (history) |
+| **Phase 1.4** | **AUTHENTICATION REMOVED (2026-09-24) — NOT CLOSED** | Delivered and retained: the 5-destination navigation shell, the database-key fail-safe, Android backup/device-transfer exclusions, and the **backup/restore infrastructure** (removed with authentication, then restored on review without its authentication parts or UI). **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** History (no longer in the code): local PIN authentication, RBAC gating, route guards, Admin Recovery Code (docs/27–34). | 2026-09-23/24 | history: `30d89f5`…`07e6807`; removal `2854fe4`; backup/restore restored (§12) | docs/27–34 (history), docs/31 (backup/restore design) |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
@@ -330,10 +331,12 @@ the disagreement is corrected here — never silently.
 | Runtime-created `users.id` values are RFC 4122 UUIDv4 (docs/04 §0) | **CONFIRMED**, implemented `09f4b0b` |
 | KDF = PBKDF2-HMAC-SHA256, 210,000 iterations, 16-byte salt, 32-byte key — **approved for now**; raise only after a real-device benchmark; verifiers versioned and re-hashed after login | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
 | PIN recovery = Admin Recovery Code (128-bit, shown once, single-use, rate-limited, audited; resets the PIN only, never touches the database or its key) | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
-| Database-key recovery = local Encrypted Recovery Package (database stays encrypted; its key AES-256-GCM-wrapped under HKDF of a separate Backup Recovery Key) | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
-| Android platform backup and device-to-device transfer disabled | **USER-DECIDED**, implemented `f27d85b`, retained. (The app's own recovery package, which this decision paired it with, was removed together with authentication on 2026-09-24.) |
+| Database-key recovery = local Encrypted Recovery Package (database stays encrypted; its key AES-256-GCM-wrapped under HKDF of a separate Backup Recovery Key) | **USER-DECIDED**, implemented `f27d85b`; removed with authentication in `2854fe4`; **restored as infrastructure (no UI, no authorization)** 2026-09-24 |
+| Android platform backup and device-to-device transfer disabled; the app's own encrypted recovery package is the intended backup | **USER-DECIDED**, implemented `f27d85b`, retained |
 | The database key is never silently deleted, never regenerated over an existing database, and a missing key is never treated as a first launch | **USER-DECIDED** (mandatory fix), implemented `f27d85b`, retained |
 | **Authentication removed**: The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Nothing of the old implementation is kept as code to restore | **USER-DECIDED**, 2026-09-24 |
+| **Restore safety rule**: a restore is refused if ANY row (soft-deleted included) exists in one of 17 operational tables: plan_imports, schools, awcs, visit_plans, visit_status_history, holidays, screening_sessions, school_screenings, school_screening_findings, awc_screenings, awc_screening_findings, awc_screening_checklist_responses, treatment_records, register_photos, register_photo_derivatives, ocr_jobs, ocr_results. The other 11 tables (seeded reference/configuration, users, devices, audit_log) do not block. A locked database (key missing/unreadable/wrong) may be restored; a check that cannot read the database fails closed | **USER-DECIDED**, 2026-09-24 (replaces the removed "refuse if user accounts exist" rule) |
+| **Backup/restore UI and authorization** wait for the authentication redesign; the infrastructure is not exposed to users until then | **USER-DECIDED**, 2026-09-24 |
 
 ---
 
@@ -391,7 +394,7 @@ Phase 1.1 and reaffirmed at every phase since.
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
 | 27 | **Release signing**: the release APK is signed with the Android debug key (Flutter template default). A production signing key, its custody, and the signing config are needed; moving test phones to a properly signed build requires an uninstall (test data is lost, since there is no platform backup). Found while preparing device validation (docs/33 P10). | **Before real child/health data** | Device-validation preparation, 2026-09-24 |
 | 28 | **Authentication and authorization redesign.** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. The new design must cover identity, credentials, session and inactivity lock, user management, role-based access, recovery and audit. | **Before real child/health data** | Authentication removal, 2026-09-24 |
-| 29 | **Local backup/recovery redesign.** The app currently has no backup or recovery; the previous one was removed together with authentication. Custody of any recovery secret and where backups may be kept (#6) belong to this decision. | **Before real child/health data** | Authentication removal, 2026-09-24 |
+| 29 | **Backup/restore user interface and authorization.** The infrastructure is restored and tested (§4) but not exposed. Still to decide, with #28: who may create the Backup Recovery Key, export and restore, and how; custody of the Backup Recovery Key; where packages may be kept (#6). | **Before real child/health data** | Authentication removal, 2026-09-24; updated on restore |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -435,7 +438,7 @@ none of that code exists any more.
 | Source-plan data quality (visit-date transposition bug, enrolment mismatches — docs/17) | Naive import logic would silently corrupt planned visit dates | Documented derivation rule (sheet + S.No, weekday cross-check) exists and is scoped for Phase 1.6; not yet implemented | **Active, understood, not yet built** |
 | Future government format changes (Job Aid revision, new referral facility types) | Could require new Disease Master rows or referral destinations | Both are versioned/configuration data, not enum values baked into code — additive by design | **Low, mitigated by design** |
 | **No authentication or access control in the app** (removed 2026-09-24) | Once features store data, anyone holding an unlocked phone with the app can read and change it | No real child/health data until authentication is redesigned and implemented (§10 #28); the database remains encrypted at rest with a Keystore-protected key | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
-| **No in-app backup/recovery** (removed 2026-09-24) | Loss of the phone, or of the database key, loses all local data | No real data until #29 is decided and implemented; the database-key fail-safe still prevents *silent* key loss | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
+| **Backup/restore not usable yet** — infrastructure restored, but no UI or authorization | Loss of the phone, or of the database key, loses all local data until users can make backups | No real data until #29 is implemented; the database-key fail-safe still prevents *silent* key loss | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
 | Sole Admin forgets PIN; local credential strength (Phase 1.4) | — | — | **Superseded** — authentication removed (2026-09-24) |
 | Silent loss of the database key (default `resetOnError: true`, then a new key generated over the existing database) | Permanent, unannounced loss of all local data | **Fixed in `f27d85b`** (R14); regression-tested with real encrypted files. Real Keystore failures not yet exercised on a device (#22) | **Mitigated (device verification pending)** |
 | Real-disk encryption tests are I/O-timing sensitive (observed 0–24 s for one test with no code change) | Spurious timeouts under parallel CPU load | Explicit 2-minute timeout on the two real-disk tests (Phase 1.4, assertions unchanged — docs/29 §12) | **Mitigated** |
@@ -470,6 +473,7 @@ none of that code exists any more.
 | Final security review | `07e6807` | Service-level authorization, atomic crash-safe restore, full-disk hang, screen/keyboard/clipboard, audit replay, leftovers; tests; docs/31 §20, docs/32 | 2026-09-24 |
 | Device validation (docs) | `24ce578`, `83af343`, `6b40cec`, `95b3281`, `fb5b403`, `56bb449` | Operator guide, validation report, Groups A–C results on one phone | 2026-09-24 |
 | **Authentication removal** | `2854fe4` | The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Also removed: RBAC read model, user repository, recovery package/backup/restore, security audit writer, `pointycastle` | 2026-09-24 |
+| Backup/restore restored | the commit that re-adds `lib/data/local/recovery` (see `git log`) | Independent backup/restore infrastructure restored without authentication, UI or routes; 17-table restore safety rule; tests; `pointycastle` re-added | 2026-09-24 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -569,7 +573,11 @@ treat this section as a substitute for either document.
 > **Retained:**
 > - the 5-destination navigation shell (the app starts directly in it);
 > - the database-key fail-safe;
-> - Android backup/device-transfer exclusions.
+> - Android backup/device-transfer exclusions;
+> - the **backup/restore infrastructure**. It was removed together with
+>   authentication, then restored on review (2026-09-24) without its
+>   authentication parts and without any UI. It uses the 17-table restore
+>   safety rule (§7).
 >
 > Real-device testing of the removed implementation is permanently stopped
 > (docs/33).

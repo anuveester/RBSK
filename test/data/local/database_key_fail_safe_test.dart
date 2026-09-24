@@ -62,7 +62,7 @@ void main() {
   }, timeout: _realDisk);
 
   test('B. existing database + missing key: no new key, database not '
-      'deleted or changed, key-unavailable error', () async {
+      'deleted or changed, recovery-required error', () async {
     await createExistingDatabase();
     final before = dbFile().readAsBytesSync();
     final emptyStore = InMemorySecureKeyStore();
@@ -153,6 +153,22 @@ void main() {
     expect(legacy.values[databaseKeyStorageName], key, reason: 'not removed');
   }, timeout: _realDisk);
 
+  test('installing a recovered key keeps the previous key under another name',
+      () async {
+    final store = InMemorySecureKeyStore();
+    final manager = DatabaseKeyManager(store: store);
+    final original = await manager.resolveKey(databaseFileExists: false);
+    final recovered = generatePassphrase();
+
+    await manager.installRecoveredKey(recovered);
+
+    expect(store.values[databaseKeyStorageName], recovered);
+    final preserved = store.values.entries
+        .where((e) => e.key.startsWith('$databaseKeyStorageName.preserved.'))
+        .map((e) => e.value);
+    expect(preserved, [original]);
+  });
+
   test('overlapping first-launch resolutions agree on one key', () async {
     final store = InMemorySecureKeyStore();
     final keys = await Future.wait([
@@ -167,6 +183,14 @@ void main() {
       isEmpty,
       reason: 'no competing key was ever generated',
     );
+  });
+
+  test('a malformed recovered key is refused and nothing is written', () async {
+    final store = InMemorySecureKeyStore();
+    final manager = DatabaseKeyManager(store: store);
+
+    await expectLater(manager.installRecoveredKey('not-a-key'), throwsArgumentError);
+    expect(store.values, isEmpty);
   });
 
   test('error text never contains key material', () async {

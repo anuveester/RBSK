@@ -21,7 +21,18 @@ identity via Supabase). What is actually built today is device-local:
   reported as an error (nothing is regenerated).
 - **Android backup:** platform backup and device-to-device transfer are
   disabled, so the encrypted database is never copied off the phone by
-  Android. The app currently has no backup feature of its own.
+  Android.
+- **Backup/restore infrastructure (no user interface yet):** the Encrypted
+  Recovery Package. The database stays encrypted; its key is AES-256-GCM
+  wrapped under a key derived from the separate Backup Recovery Key.
+  - Import is verified before anything changes.
+  - Restore is all-or-nothing and crash-safe.
+  - A restore is refused while the phone holds business data (17-table
+    rule, docs/00 §7).
+  - Security events for these operations are written to `audit_log`.
+
+  Nothing in the app exposes backup or restore until the redesigned
+  authentication decides who may use them.
 
 ## Authentication
 
@@ -103,11 +114,13 @@ identity via Supabase). What is actually built today is device-local:
 - Cloud: provider-managed automated backups (tier/retention TBD — budget decision, see
   [12_RISKS_OPEN_QUESTIONS.md](12_RISKS_OPEN_QUESTIONS.md)).
 - Local: ADMIN-triggered manual encrypted export as a disaster-recovery fallback (see
-  [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §6). **Not
-  implemented.** An earlier implementation (docs/31) was removed together with
-  authentication on 2026-09-24; backup/recovery will be redesigned with the new
-  authentication (docs/00 §10 #29). Android platform backup is deliberately
-  disabled so it can never become an uncontrolled copy.
+  [04_DATABASE_ARCHITECTURE.md](04_DATABASE_ARCHITECTURE.md) §6).
+  - **Infrastructure implemented** as the Encrypted Recovery Package
+    (docs/31 §6–§7, §20).
+  - **Not yet exposed in the app:** its user interface and authorization come
+    after the authentication redesign (docs/00 §10 #28, #29).
+  - Android platform backup is deliberately disabled so it can never become
+    an uncontrolled copy.
 
 ## Data residency — open question, not an assumption
 

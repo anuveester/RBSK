@@ -1,10 +1,21 @@
 # Security Hardening — Implementation Report
 
-> **HISTORICAL — REMOVED IMPLEMENTATION (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
-> This document describes the removed implementation (and, where relevant,
-> the backup/recovery features removed with it). None of the code it
-> describes is part of the current application, and this document is not a
-> plan for restoring it. Current status:
+> **HISTORICAL — PARTLY REMOVED (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
+> **Removed (authentication):**
+> - login, PIN, KDF, lockout and sessions;
+> - the Admin Recovery Code;
+> - Admin-PIN checks and role gating;
+> - "set Admin PIN after restore";
+> - authentication audit events.
+>
+> **Restored as independent infrastructure, with no user interface yet:**
+> - the Encrypted Recovery Package and the Backup Recovery Key;
+> - export, verified import and the crash-safe restore transaction;
+> - start-up recovery;
+> - the audit writer.
+>
+> The old restore refusal rule ("user accounts exist") is replaced by the
+> 17-table business-data rule (docs/00 §7). Current status:
 > [00_PROJECT_MASTER_PLAN.md](00_PROJECT_MASTER_PLAN.md) §0.
 
 **Status: IMPLEMENTED, then corrected by the final security review (§20),

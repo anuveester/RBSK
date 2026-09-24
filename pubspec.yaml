@@ -40,6 +40,11 @@ dependencies:
   # in source, never in plain SharedPreferences).
   flutter_secure_storage: ^11.2.0
 
+  # --- Encrypted recovery package (backup/restore infrastructure) ---
+  # AES-256-GCM, HKDF-SHA256 and SHA-256 for the recovery package and the
+  # Backup Recovery Key check character. Pure Dart; no native build step.
+  pointycastle: ^4.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
