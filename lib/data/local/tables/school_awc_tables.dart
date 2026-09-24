@@ -91,6 +91,11 @@ class Awcs extends Table {
 }
 
 /// docs/04_DATABASE_ARCHITECTURE.md §2.2
+///
+/// `imported_by` is nullable from schema version 2 [USER-DECIDED 2026-09-24]:
+/// the app has no users while authentication is removed (docs/00 §10 #28),
+/// so the importer is unknown and stays NULL — never a placeholder user.
+/// It is filled from the real user once authentication is redesigned.
 class PlanImports extends Table {
   @override
   String get tableName => 'plan_imports';
@@ -98,7 +103,8 @@ class PlanImports extends Table {
   TextColumn get id => text()();
   TextColumn get financialYearId => text().references(FinancialYears, #id)();
   TextColumn get sourceFilename => text()();
-  TextColumn get importedBy => text().references(Users, #id)();
+  TextColumn get importedBy =>
+      text().nullable().references(Users, #id)();
   DateTimeColumn get importedAt =>
       dateTime().clientDefault(() => DateTime.now().toUtc())();
   IntColumn get rowCount => integer().nullable()();

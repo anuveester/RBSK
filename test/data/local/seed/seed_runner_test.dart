@@ -228,12 +228,12 @@ void main() {
   });
 
   group('SeedRunner — database integrity', () {
-    test('schemaVersion is unchanged at 1', () async {
+    test('schemaVersion is unchanged by seeding', () async {
       final db = openTestDatabase();
       addTearDown(db.close);
       await SeedRunner(db).seedAll();
 
-      expect(db.schemaVersion, 1);
+      expect(db.schemaVersion, 2);
     });
 
     test('table count is still exactly 28 after seeding (no schema objects '

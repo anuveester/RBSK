@@ -22,12 +22,11 @@ void main() {
     tempDir.deleteSync(recursive: true);
   });
 
-  test('schema version 1 is the frozen v1.0 baseline, not a placeholder',
-      () async {
+  test('schema version is 2 and the migration strategy is real', () async {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 1);
+    expect(db.schemaVersion, 2);
     expect(db.migration, isNotNull);
   });
 

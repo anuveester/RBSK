@@ -72,20 +72,29 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   /// Schema version 1 = the frozen v1.0 schema, in full, as a single initial
-  /// migration. Future schema changes get their own numbered version and a
-  /// `MigrationStrategy` step — never a destructive recreate
-  /// (Phase 1.2 instruction §5).
+  /// migration. Every later change gets its own numbered version and an
+  /// `onUpgrade` step — never a destructive recreate (Phase 1.2 instruction
+  /// §5).
+  ///
+  /// Version 2 (Phase 1.6): `plan_imports.imported_by` becomes nullable
+  /// [USER-DECIDED 2026-09-24] — see [PlanImports].
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
     },
-    // No onUpgrade steps yet: schema version 1 is the first shipped version.
-    // The next schema change adds a numbered `if (from < 2) { ... }` step
-    // here rather than replacing this strategy.
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        // SQLite cannot drop a NOT NULL constraint in place; Drift rebuilds
+        // the table and copies every row across. Foreign keys are not yet
+        // switched on here (that happens in beforeOpen), so the rebuild does
+        // not trip over visit_plans/holidays rows that reference it.
+        await m.alterTable(TableMigration(planImports));
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

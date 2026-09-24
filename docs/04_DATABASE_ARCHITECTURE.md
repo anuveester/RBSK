@@ -215,7 +215,7 @@ CREATE TABLE plan_imports (
   id                 uuid PRIMARY KEY,
   financial_year_id  uuid NOT NULL REFERENCES financial_years(id),
   source_filename    text NOT NULL,
-  imported_by        uuid NOT NULL REFERENCES users(id),
+  imported_by        uuid REFERENCES users(id),   -- nullable from schema v2 (§9 item 14)
   imported_at        timestamptz NOT NULL DEFAULT now(),
   row_count          integer,
   notes              text
@@ -907,3 +907,14 @@ and tested this document as written):
     (256-bit `Random.secure()` passphrase, Android Keystore-backed
     `flutter_secure_storage`, never hardcoded, never committed, `libsqlite3mc.so`
     confirmed bundled in the built APK).
+
+**Schema amendments** (approved, versioned migrations after the freeze):
+
+14. **Schema version 2 — `plan_imports.imported_by` nullable** (Phase 1.6,
+    **USER-DECIDED 2026-09-24**). Authentication was removed in Phase 1.4, so
+    the app has no users and a Micro Plan import has no known importer. Rather
+    than invent a placeholder user, `imported_by` may now be NULL; it is filled
+    from the real user once authentication is redesigned. Implemented as Drift
+    `schemaVersion = 2` with an `onUpgrade` step that rebuilds `plan_imports`
+    and copies every row (`TableMigration`); no other table or column changed.
+    Tested by `test/data/local/migration_v2_test.dart` (real v1 file → v2).

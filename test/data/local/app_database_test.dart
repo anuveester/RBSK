@@ -18,11 +18,12 @@ void main() {
       expect(result.read<int>('one'), 1);
     });
 
-    test('reports schema version 1 (the frozen v1.0 baseline)', () async {
+    test('reports schema version 2 (v1.0 baseline + nullable '
+        'plan_imports.imported_by)', () async {
       final db = openTestDatabase();
       addTearDown(db.close);
 
-      expect(db.schemaVersion, 1);
+      expect(db.schemaVersion, 2);
     });
 
     test('creates all 28 tables from the frozen schema', () async {

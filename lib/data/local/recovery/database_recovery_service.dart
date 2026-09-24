@@ -499,7 +499,7 @@ class DatabaseRecoveryService {
     }
   }
 
-  static const int _supportedSchemaVersion = 1;
+  static const int _supportedSchemaVersion = 2;
 
   static Future<bool> _isPlaintextSqlite(File file) async {
     const header = 'SQLite format 3\u0000';
