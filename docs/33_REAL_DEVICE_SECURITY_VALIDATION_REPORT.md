@@ -1,7 +1,7 @@
 # Real-Device Security Validation Report: Phase 1.4
 
-> **STATUS: IN PROGRESS — Group A run on one physical phone (2026-09-24).
-> Groups B–K NOT RUN.** This report is filled in only from tests actually
+> **STATUS: IN PROGRESS — Groups A and B run on one physical phone
+> (2026-09-24). Groups C–K NOT RUN.** This report is filled in only from tests actually
 > performed on a real Android phone (driven over ADB, with the tester
 > holding the phone). Nothing here is marked PASS on the basis of
 > automated tests or assumption.
@@ -114,6 +114,34 @@ content from accessibility services. The harness masked it. Implication:
 a malicious app granted accessibility permission could read codes on
 screen. This is not verified further, and nothing was changed.
 
+### 5.0b Group B (phone 1), REAL DEVICE VERIFIED
+
+Same phone, app and setup as Group A. Each attempt used the **Test Admin
+001** entry on the login screen. Before every tap on "Log in", the harness
+checked that the PIN field held exactly 6 characters. The wrong PIN was
+derived from Test PIN 1 inside the shell (a different last digit); no PIN
+was printed.
+
+Harness note: the first B1 run aborted **before** "Log in" was tapped,
+because the field check itself failed (a helper quoting bug). No login
+attempt was made. The helper was fixed and B1 re-run.
+
+| Test | Result | Observed |
+|---|---|---|
+| **B1** Correct PIN | **PASS** | Home opened (5 tabs); More → Log out → login screen. |
+| **B2** One wrong PIN | **PASS** | "Incorrect PIN."; stayed on the login screen. |
+| **B3** Five wrong attempts | **PASS** | Attempts 2–5 each showed "Incorrect PIN." (5 in total, B2 included). As designed (docs/33 P8), the 5th still shows "Incorrect PIN.". |
+| **B4** Lockout | **PASS** | Right after the 5th wrong attempt, the **correct** PIN was refused: **"Too many incorrect attempts. Try again in 41 seconds."** It answered in about 6 s versus about 12 s for a PIN check, consistent with the lockout being checked before PIN verification. The remaining time is consistent with a 60 s lockout from the 5th failure. |
+| **B5** Lockout expiry | **PASS** | Waited until 70 s after the 5th wrong attempt. The device clock was **not** changed. The screen was kept awake with taps on the non-interactive title. The old lockout text stays on screen until the next attempt (display only). |
+| **B6** Correct PIN after lockout | **PASS** | Home opened. |
+
+- **Crashes:** none (crash buffer and `FATAL` / `E/flutter` empty).
+- **Timing caveat:** the "about 11.5–12.9 s" per attempt is the
+  **harness's** time from tap to detection. It includes `uiautomator`
+  dumps of about 2 s each and is **not** a KDF measurement (that is
+  Group C).
+- **End state:** logged in, on Home.
+
 ### 5.1 Pre-test inspection findings: checklist vs. implementation
 
 These were found while preparing. None is a security defect in the
@@ -135,7 +163,7 @@ tested flows. They change **how** some tests can be done.
 
 ## 6. PASS count
 
-3 (A1, A2, A3), phone 1 only.
+9 (A1–A3, B1–B6), phone 1 only.
 
 ## 7. FAIL count
 
@@ -144,7 +172,7 @@ fault, and the clean re-run passed.)
 
 ## 8. NOT RUN count
 
-Everything except Group A: B, C, D, E, F, G, H (except the A2
+Everything except Groups A and B: C, D, E, F, G, H (except the A2
 screenshot check), I, J, K.
 
 ## 9. KDF timing
