@@ -1,7 +1,10 @@
 # Phase 1.5 — School/AWC Master CRUD + Search (Implementation Plan)
 
-**Status: plan written, awaiting implementation approval. No code, test,
-dependency, route, provider or schema change has been made for Phase 1.5.**
+**Status: IMPLEMENTED (commit `090def5`), awaiting user review/closure.**
+Results, evidence and deviations: [36_PHASE_1_5_REPORT.md](36_PHASE_1_5_REPORT.md).
+The plan text below is kept as approved. Where the implementation differs
+(routes `/add` and `/:id/edit` instead of `/new`; no automatic provider
+retry; non-lazy form and detail layouts), docs/36 §8 records it.
 
 Scope reference: [21_PHASE_0_6_FREEZE.md](21_PHASE_0_6_FREEZE.md) §10, step 1.5:
 "School/AWC Master CRUD + search; blank official codes preserved; duplicate
@@ -360,6 +363,10 @@ Nested under the existing **More** branch of the shell (no new tab):
 | `/more/awcs/duplicates` | AWC — Possible duplicates |
 | `/more/awcs/:id` | AWC Detail / Edit |
 
+> **As implemented** (per the implementation instruction; docs/36 §5):
+> `/add` replaces `/new`, and editing has its own `/:id/edit` route, for
+> both masters.
+
 - **No redirects or guards**, since authentication is deleted (D2).
 - **Constants** go in `Routes`.
 - **Router test:** `test/core/router/app_router_test.dart` changes from
@@ -558,18 +565,18 @@ proposed here for confirmation at implementation approval):
 
 ## 22. Definition of Done
 
-- [ ] §18 acceptance criteria 1–11 all met, with evidence in the report
-- [ ] New tests for every §17 item; all tests pass; `flutter analyze` clean;
+- [x] §18 acceptance criteria 1–11 all met, with evidence in the report
+- [x] New tests for every §17 item; all tests pass; `flutter analyze` clean;
       release APK builds
-- [ ] No schema, dependency, authentication or Backup/Restore UI change
+- [x] No schema, dependency, authentication or Backup/Restore UI change
       (verified by diff)
-- [ ] Deviations DV1–DV5 documented in the report and the Master Plan
-- [ ] Plan points P1–P6 implemented as confirmed at approval
-- [ ] Master Plan updated per docs/00 §13 (status, §4 feature map, §5
+- [x] Deviations DV1–DV5 documented in the report and the Master Plan
+- [x] Plan points P1–P6 implemented as confirmed at approval
+- [x] Master Plan updated per docs/00 §13 (status, §4 feature map, §5
       roadmap, results, commits, §10 and §11 changes)
-- [ ] Hygiene and PII scan clean (no real codes, names or personal data in
+- [x] Hygiene and PII scan clean (no real codes, names or personal data in
       Git)
-- [ ] Phase 1.5 left **awaiting user review/closure**, and Phase 1.6 not
+- [x] Phase 1.5 left **awaiting user review/closure**, and Phase 1.6 not
       started
 
 ## Summary for approval

@@ -18,25 +18,28 @@ block, or material revision — not only at project end.** See §13.
 
 ```
 CURRENT PHASE:          Phase 1.5 — School/AWC Master CRUD + search:
-                         PLAN WRITTEN (docs/35), awaiting implementation
-                         approval. Not started.
-PHASE STATUS:           Plan only. No Phase 1.5 code, test, route,
-                         provider, dependency or schema change yet.
+                         IMPLEMENTED (code `090def5`; report docs/36),
+                         awaiting user review/closure.
+PHASE STATUS:           277/277 tests pass, `flutter analyze` clean,
+                         release APK builds. No schema, dependency,
+                         authentication or Backup/Restore UI change.
+                         Not yet tested on a real device.
 LAST COMPLETED PHASE:   Phase 1.4 — CLOSED (2026-09-24): "Shell + database
                          protections + backup infrastructure; authentication
                          removed."
                          Authentication will be redesigned and implemented
                          from scratch after the complete functional
                          application is finished.
-CURRENT TASK:           None — Phase 1.5 plan written, awaiting approval
-NEXT APPROVAL REQUIRED: Phase 1.5 implementation approval, including plan
-                         points P1–P6 (docs/35 §20)
+CURRENT TASK:           None — Phase 1.5 implemented, awaiting review
+NEXT APPROVAL REQUIRED: Phase 1.5 review/closure decision. Phase 1.6
+                         (Micro Plan import) is NOT started.
 BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA: authentication and
                          authorization (to be redesigned, §10 #28); local
                          backup/recovery (#29); release signing (#27); data
                          residency (#6).
-PHASE 1.4 / 1.5:        Phase 1.4 CLOSED. Phase 1.5 PLANNED, NOT STARTED.
-LAST UPDATED:           2026-09-24 (Phase 1.4 closed; Phase 1.5 plan written)
+PHASE 1.4 / 1.5:        Phase 1.4 CLOSED. Phase 1.5 IMPLEMENTED, awaiting
+                         review/closure.
+LAST UPDATED:           2026-09-24 (Phase 1.5 implemented)
 ```
 
 ---
@@ -53,7 +56,7 @@ LAST UPDATED:           2026-09-24 (Phase 1.4 closed; Phase 1.5 plan written)
 | Primary users | RBSK Medical Officers and field team members |
 | Authorized user count | ~8–10 (single team, "Team-B", confirmed from source Micro Plan) |
 | Current technology stack | Flutter 3.47.2 · Dart 3.13.2 · Riverpod · go_router · Drift (SQLite) · `sqlite3` + SQLite3MultipleCiphers encryption · `pointycastle` (PBKDF2 PIN verifier) |
-| Current project status | Phases 1.1–1.3 approved & closed. Phase 1.4 (local PIN auth, RBAC read model, role-gated 5-destination shell) implemented and independently verified (PASS WITH FIXES); security hardening (recovery code, encrypted recovery package, DB-key fail-safe, platform backup disabled) implemented, not device-verified; awaiting your review and closure decision. No business feature UI yet — the five destinations are stubs |
+| Current project status | Phases 1.1–1.4 closed. Phase 1.4 closed as "Shell + database protections + backup infrastructure; authentication removed". Phase 1.5 (School/AWC Master CRUD + search) is implemented and awaiting review/closure. The only business feature UI is the School and AWC masters (More → Masters); the five tab destinations are otherwise stubs. There is no authentication (§10 #28) |
 | Git | See `git log`; working tree clean after each phase commit |
 
 ---
@@ -137,16 +140,17 @@ Status legend: **DONE** (implemented & tested) · **IN PROGRESS** · **PLANNED**
 
 Nothing below is marked DONE unless code exists and tests pass for it — as of
 this update, that is the database schema + encryption layer (Phase 1.2), the
-four reference-data domains' seed data + read layer (Phase 1.3), and local
-authentication + RBAC navigation (Phase 1.4, implemented, pending
-verification/closure). Everything else remains architecture/design (Phase
+four reference-data domains' seed data + read layer (Phase 1.3), the
+navigation shell, database-key fail-safe and backup/restore infrastructure
+(Phase 1.4, closed; authentication removed), and the School/AWC masters
+(Phase 1.5, implemented, awaiting review). Everything else remains architecture/design (Phase
 0.x) with no application code yet.
 
 ### Planning
 | Feature | Status |
 |---|---|
 | Financial Year | Schema: DONE. Seed data: **DONE** (FY 2025-26 seeded, tested; FY 2026-27 deliberately not seeded — Phase 1.3, commit `30d01ff`) |
-| School/AWC Master | Schema: DONE. Feature: PLANNED (Phase 1.5) |
+| School/AWC Master | Schema: DONE. Feature: **DONE, awaiting review** (Phase 1.5, `090def5`): list, search, District/Block/Status filters, add, edit, Active/Inactive (no delete), duplicate-code error, possible-duplicate warnings and review screens, one `audit_log` row per change (NULL actor), locked-data message. Not yet tested on a real device |
 | Micro Plan import | Schema: DONE. Feature: PLANNED (Phase 1.6) |
 | Visit Plan | Schema: DONE. Feature: PLANNED (Phase 1.7) |
 | Planned/enrolment counts | Schema: DONE, tested separate from actual counts (Phase 1.2) |
@@ -255,7 +259,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
 | **Phase 1.4** | **CLOSED (2026-09-24)** — Shell + database protections + backup infrastructure; authentication removed. | Delivered and retained: the 5-destination navigation shell, the database-key fail-safe, Android backup/device-transfer exclusions, and the **backup/restore infrastructure** (removed with authentication, then restored on review without its authentication parts or UI). **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** History (no longer in the code): local PIN authentication, RBAC gating, route guards, Admin Recovery Code (docs/27–34). | 2026-09-23/24 | history: `30d89f5`…`07e6807`; removal `2854fe4`; backup/restore restored (§12) | docs/27–34 (history), docs/31 (backup/restore design) |
-| Phase 1.5 | **PLAN WRITTEN — awaiting implementation approval** | School/AWC Master CRUD + search; blank codes stay blank; duplicate review; Active/Inactive; audit rows (NULL actor) | — | plan: this commit (§12) | docs/21 §10, docs/35 |
+| Phase 1.5 | **IMPLEMENTED — awaiting review/closure** | School/AWC Master CRUD + search; blank codes stay blank; duplicate review; Active/Inactive; audit rows (NULL actor). 277/277 tests, analyze clean, APK builds | 2026-09-24 | plan `241173e`; code `090def5`; docs (§12) | docs/21 §10, docs/35, docs/36 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
 | Phase 1.8 | PLANNED — NOT YET APPROVED | Screening sessions + School screening entry | — | — | docs/21 §10 |
@@ -350,7 +354,7 @@ the disagreement is corrected here — never silently.
 | Encryption technology | `sqlite3` 3.6.0 + SQLite3MultipleCiphers (`sqlite3mc`), `PRAGMA key`, SQLCipher-compatible |
 | Migration status | Version 1 = the full frozen schema in one `onCreate` pass. No `onUpgrade` steps exist yet (none needed — no prior version to migrate from). Strategy structured to add numbered steps, never destructive recreation. |
 | Key invariants | Client-generated TEXT UUID primary keys everywhere; no hard deletes; append-only history tables (`visit_status_history`, `staff_assignments`, `audit_log`, `ocr_results`); `created_by`/`updated_by` carry no FK constraint (matches the frozen DDL exactly, even though it looks asymmetric with columns like `changed_by` that do) |
-| Currently implemented layer | Schema + encrypted connection + centralized Riverpod provider (Phase 1.2); idempotent seed data and a minimal repository/entity read layer for 4 reference domains (Phase 1.3, commit `30d01ff`); a `users` repository used by local auth (Phase 1.4). The only runtime-written business rows are the first-run Admin's `users` row and its `last_login_at`. **No schema change in Phase 1.4** — still `schemaVersion = 1`, 28 tables. Credential verifiers, sessions and lockout state live in `SecureKeyStore`, not the database |
+| Currently implemented layer | Schema + encrypted connection + centralized Riverpod provider (Phase 1.2); idempotent seed data and a minimal repository/entity read layer for 4 reference domains (Phase 1.3, commit `30d01ff`); School and AWC repositories with a business audit writer (Phase 1.5, `090def5`). The Phase 1.4 `users` repository was removed with authentication. The only runtime-written business rows are `schools`, `awcs` and their `audit_log` rows (Phase 1.5). **No schema change in Phase 1.4 or 1.5** — still `schemaVersion = 1`, 28 tables |
 | Future database work | Phase 1.3 DONE: rows into 6 existing tables, no schema change. Later: `sync_queue` (local-only, not part of the 28) when the sync-engine phase is scheduled; `awc_checklist_items` catalogue rows when the AWC form phase is scheduled |
 
 **Not to be confused:** the local-only `sync_queue` outbox table
@@ -439,6 +443,7 @@ none of that code exists any more.
 | Future government format changes (Job Aid revision, new referral facility types) | Could require new Disease Master rows or referral destinations | Both are versioned/configuration data, not enum values baked into code — additive by design | **Low, mitigated by design** |
 | **No authentication or access control in the app** (removed 2026-09-24) | Once features store data, anyone holding an unlocked phone with the app can read and change it | No real child/health data until authentication is redesigned and implemented (§10 #28); the database remains encrypted at rest with a Keystore-protected key | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
 | **Backup/restore not usable yet** — infrastructure restored, but no UI or authorization | Loss of the phone, or of the database key, loses all local data until users can make backups | No real data until #29 is implemented; the database-key fail-safe still prevents *silent* key loss | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
+| **Masters are the first UI feature that opens the encrypted database** (Phase 1.5); not yet tested on a real device | A start-up problem (key, restore recovery, journal flush) would first show on a phone | Locked-data message with Try again (D5); real-file encrypted round-trip test; key fail-safe unchanged | **Open** — needs a device check |
 | Sole Admin forgets PIN; local credential strength (Phase 1.4) | — | — | **Superseded** — authentication removed (2026-09-24) |
 | Silent loss of the database key (default `resetOnError: true`, then a new key generated over the existing database) | Permanent, unannounced loss of all local data | **Fixed in `f27d85b`** (R14); regression-tested with real encrypted files. Real Keystore failures not yet exercised on a device (#22) | **Mitigated (device verification pending)** |
 | Real-disk encryption tests are I/O-timing sensitive (observed 0–24 s for one test with no code change) | Spurious timeouts under parallel CPU load | Explicit 2-minute timeout on the two real-disk tests (Phase 1.4, assertions unchanged — docs/29 §12) | **Mitigated** |
@@ -474,7 +479,9 @@ none of that code exists any more.
 | Device validation (docs) | `24ce578`, `83af343`, `6b40cec`, `95b3281`, `fb5b403`, `56bb449` | Operator guide, validation report, Groups A–C results on one phone | 2026-09-24 |
 | **Authentication removal** | `2854fe4` | The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Also removed: RBAC read model, user repository, recovery package/backup/restore, security audit writer, `pointycastle` | 2026-09-24 |
 | Backup/restore restored | `81242cc` | Independent backup/restore infrastructure restored without authentication, UI or routes; 17-table restore safety rule; tests; `pointycastle` re-added | 2026-09-24 |
-| Phase 1.4 closure + Phase 1.5 plan | the commit that adds docs/35 (see `git log`) | Phase 1.4 closed (Shell + database protections + backup infrastructure; authentication removed); Phase 1.5 plan (docs/35) | 2026-09-24 |
+| Phase 1.4 closure + Phase 1.5 plan | `241173e` | Phase 1.4 closed (Shell + database protections + backup infrastructure; authentication removed); Phase 1.5 plan (docs/35) | 2026-09-24 |
+| Phase 1.5 (code) | `090def5` | School/AWC Master CRUD + search, duplicate rules, audit rows, locked-data message, routes; tests | 2026-09-24 |
+| Phase 1.5 (docs) | the commit that adds docs/36 (see `git log`) | Report (docs/36), plan status (docs/35), this Master Plan update | 2026-09-24 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -665,7 +672,7 @@ treat this section as a substitute for either document.
   - After removal: 97/97 tests, `flutter analyze` clean, APK builds.
   - Schema unchanged (28 tables, `schemaVersion` 1).
 - **Phase 1.4 CLOSED (2026-09-24)** by explicit decision: Shell + database protections + backup infrastructure; authentication removed.
-- **Phase 1.5:** plan written ([35_PHASE_1_5_PLAN.md](35_PHASE_1_5_PLAN.md)); awaiting implementation approval; not started.
+- **Phase 1.5:** plan ([35_PHASE_1_5_PLAN.md](35_PHASE_1_5_PLAN.md)) implemented in `090def5`; report [36_PHASE_1_5_REPORT.md](36_PHASE_1_5_REPORT.md). 277/277 tests, analyze clean, APK builds. Deviations (docs/36 §8): routes `/add` and `/:id/edit`; no automatic provider retry; non-lazy form and detail layouts; DV1–DV5 as approved. Awaiting review/closure; Phase 1.6 not started.
 
 ---
 
