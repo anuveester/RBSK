@@ -17,27 +17,26 @@ block, or material revision — not only at project end.** See §13.
 ## 0. Current Status
 
 ```
-CURRENT PHASE:          Phase 1.4 — authentication REMOVED (2026-09-24);
-                         navigation shell retained
-PHASE STATUS:           The Phase 1.4 authentication implementation was
-                         intentionally removed. Authentication will be
-                         redesigned and implemented from scratch after the
-                         complete functional application is finished.
-                         The app now starts directly in the main shell.
-                         NOT CLOSED.
-LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
-                         Layer (APPROVED / CLOSED, unchanged).
-CURRENT TASK:           None — authentication removal done; backup/restore
-                         infrastructure restored without UI (§12), awaiting
-                         your review
-NEXT APPROVAL REQUIRED: Review of the removal; Phase 1.4 closure decision /
-                         next phase
+CURRENT PHASE:          Phase 1.5 — School/AWC Master CRUD + search:
+                         PLAN WRITTEN (docs/35), awaiting implementation
+                         approval. Not started.
+PHASE STATUS:           Plan only. No Phase 1.5 code, test, route,
+                         provider, dependency or schema change yet.
+LAST COMPLETED PHASE:   Phase 1.4 — CLOSED (2026-09-24): "Shell + database
+                         protections + backup infrastructure; authentication
+                         removed."
+                         Authentication will be redesigned and implemented
+                         from scratch after the complete functional
+                         application is finished.
+CURRENT TASK:           None — Phase 1.5 plan written, awaiting approval
+NEXT APPROVAL REQUIRED: Phase 1.5 implementation approval, including plan
+                         points P1–P6 (docs/35 §20)
 BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA: authentication and
                          authorization (to be redesigned, §10 #28); local
                          backup/recovery (#29); release signing (#27); data
                          residency (#6).
-PHASE 1.4 / 1.5:        Phase 1.4 NOT CLOSED. Phase 1.5 NOT STARTED.
-LAST UPDATED:           2026-09-24 (authentication removed)
+PHASE 1.4 / 1.5:        Phase 1.4 CLOSED. Phase 1.5 PLANNED, NOT STARTED.
+LAST UPDATED:           2026-09-24 (Phase 1.4 closed; Phase 1.5 plan written)
 ```
 
 ---
@@ -255,8 +254,8 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| **Phase 1.4** | **AUTHENTICATION REMOVED (2026-09-24) — NOT CLOSED** | Delivered and retained: the 5-destination navigation shell, the database-key fail-safe, Android backup/device-transfer exclusions, and the **backup/restore infrastructure** (removed with authentication, then restored on review without its authentication parts or UI). **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** History (no longer in the code): local PIN authentication, RBAC gating, route guards, Admin Recovery Code (docs/27–34). | 2026-09-23/24 | history: `30d89f5`…`07e6807`; removal `2854fe4`; backup/restore restored (§12) | docs/27–34 (history), docs/31 (backup/restore design) |
-| Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
+| **Phase 1.4** | **CLOSED (2026-09-24)** — Shell + database protections + backup infrastructure; authentication removed. | Delivered and retained: the 5-destination navigation shell, the database-key fail-safe, Android backup/device-transfer exclusions, and the **backup/restore infrastructure** (removed with authentication, then restored on review without its authentication parts or UI). **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** History (no longer in the code): local PIN authentication, RBAC gating, route guards, Admin Recovery Code (docs/27–34). | 2026-09-23/24 | history: `30d89f5`…`07e6807`; removal `2854fe4`; backup/restore restored (§12) | docs/27–34 (history), docs/31 (backup/restore design) |
+| Phase 1.5 | **PLAN WRITTEN — awaiting implementation approval** | School/AWC Master CRUD + search; blank codes stay blank; duplicate review; Active/Inactive; audit rows (NULL actor) | — | plan: this commit (§12) | docs/21 §10, docs/35 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
 | Phase 1.8 | PLANNED — NOT YET APPROVED | Screening sessions + School screening entry | — | — | docs/21 §10 |
@@ -337,6 +336,7 @@ the disagreement is corrected here — never silently.
 | **Authentication removed**: The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Nothing of the old implementation is kept as code to restore | **USER-DECIDED**, 2026-09-24 |
 | **Restore safety rule**: a restore is refused if ANY row (soft-deleted included) exists in one of 17 operational tables: plan_imports, schools, awcs, visit_plans, visit_status_history, holidays, screening_sessions, school_screenings, school_screening_findings, awc_screenings, awc_screening_findings, awc_screening_checklist_responses, treatment_records, register_photos, register_photo_derivatives, ocr_jobs, ocr_results. The other 11 tables (seeded reference/configuration, users, devices, audit_log) do not block. A locked database (key missing/unreadable/wrong) may be restored; a check that cannot read the database fails closed | **USER-DECIDED**, 2026-09-24 (replaces the removed "refuse if user accounts exist" rule) |
 | **Backup/restore UI and authorization** wait for the authentication redesign; the infrastructure is not exposed to users until then | **USER-DECIDED**, 2026-09-24 |
+| **Phase 1.5 decisions D1–D7** (docs/35): D1 audit rows for School/AWC INSERT/UPDATE with `actor_user_id` NULL, `created_by`/`updated_by` NULL, no invented identity; D2 no RBAC enforcement and no temporary roles until authentication is rebuilt; D3 Active/Inactive only, no delete action; D4 duplicate rules (duplicate non-blank school code = hard error; same normalized school name + different code = warning; AWC name + village + subcentre = warning; trim / collapse spaces / case-insensitive, no fuzzy matching; never auto-merge); D5 locked-data message without Restore; D6 institution type quick-pick PS/UPS/COM/Blank; D7 Phase 1.4 closed | **USER-DECIDED**, 2026-09-24, frozen for Phase 1.5 |
 
 ---
 
@@ -474,6 +474,7 @@ none of that code exists any more.
 | Device validation (docs) | `24ce578`, `83af343`, `6b40cec`, `95b3281`, `fb5b403`, `56bb449` | Operator guide, validation report, Groups A–C results on one phone | 2026-09-24 |
 | **Authentication removal** | `2854fe4` | The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Also removed: RBAC read model, user repository, recovery package/backup/restore, security audit writer, `pointycastle` | 2026-09-24 |
 | Backup/restore restored | `81242cc` | Independent backup/restore infrastructure restored without authentication, UI or routes; 17-table restore safety rule; tests; `pointycastle` re-added | 2026-09-24 |
+| Phase 1.4 closure + Phase 1.5 plan | the commit that adds docs/35 (see `git log`) | Phase 1.4 closed (Shell + database protections + backup infrastructure; authentication removed); Phase 1.5 plan (docs/35) | 2026-09-24 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -559,7 +560,7 @@ treat this section as a substitute for either document.
   two-step pattern (Claude implements + reports, user reviews + approves)
   used for every phase so far.
 
-### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (AUTHENTICATION REMOVED — NOT CLOSED)
+### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (CLOSED 2026-09-24 — Shell + database protections + backup infrastructure; authentication removed)
 
 > **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** Removed on 2026-09-24 by explicit decision,
 > together with everything built on it:
@@ -663,7 +664,8 @@ treat this section as a substitute for either document.
   section.
   - After removal: 97/97 tests, `flutter analyze` clean, APK builds.
   - Schema unchanged (28 tables, `schemaVersion` 1).
-- **Phase 1.4 NOT CLOSED. Phase 1.5 not started.**
+- **Phase 1.4 CLOSED (2026-09-24)** by explicit decision: Shell + database protections + backup infrastructure; authentication removed.
+- **Phase 1.5:** plan written ([35_PHASE_1_5_PLAN.md](35_PHASE_1_5_PLAN.md)); awaiting implementation approval; not started.
 
 ---
 
