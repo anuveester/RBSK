@@ -28,8 +28,10 @@ LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
 CURRENT TASK:           None — final security review done (fixes +
                          tests; docs/31 §20; device checklist docs/32),
                          awaiting your review
-NEXT APPROVAL REQUIRED: Review of docs/31 §20; run docs/32 on real
-                         phones; Phase 1.4 closure decision
+NEXT APPROVAL REQUIRED: Real-device validation in progress: tester runs
+                         docs/34 (operator guide) with app-release.apk;
+                         results go to docs/33 (currently NO device test
+                         performed). Then Phase 1.4 closure decision
 BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA (not Phase 1.4
                          closure): real-device test campaign incl. recovery,
                          backup/restore and KDF benchmark (§10 #22); custody
@@ -397,6 +399,7 @@ Phase 1.1 and reaffirmed at every phase since.
 | 23 | **Custody of recovery secrets**: who holds the Admin Recovery Code and the Backup Recovery Key, where, and how they are reissued. Operational; the app cannot decide it. | **Before real child/health data** | docs/30 §14 #4 |
 | 25 | **Where recovery packages may be kept** (Downloads, USB, a cloud drive app, …): a custody and data-residency question (#6). Packages are encrypted, but the choice of location is policy. | **Before real child/health data** | Security hardening, 2026-09-24 |
 | 26 | Security-hardening backlog (docs/31 §15): clean-up of preserved databases/keys; file-picker request lost if Android recreates the screen; Hindi localization. (Service-level Admin check, code-entry screenshot block and leftover temp files were fixed in the final security review, docs/31 §20.) | Hardening backlog | Security hardening, 2026-09-24 |
+| 27 | **Release signing**: the release APK is signed with the Android debug key (Flutter template default). A production signing key, its custody, and the signing config are needed; moving test phones to a properly signed build requires an uninstall (test data is lost, since there is no platform backup). Found while preparing device validation (docs/33 P10). | **Before real child/health data** | Device-validation preparation, 2026-09-24 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
