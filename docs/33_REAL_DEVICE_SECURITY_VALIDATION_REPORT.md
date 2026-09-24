@@ -146,8 +146,8 @@ attempt was made. The helper was fixed and B1 re-run.
 
 | Test | Result | Summary |
 |---|---|---|
-| **C1** Login timing | **PASS: measurement completed** (a measurement; there is no pass/fail threshold) | 5 counted logins: **5,038–5,068 ms** from tap to Home (median 5,049 ms). The UI stayed responsive: **no frame gap above 16.6 ms**. Detail in §9. |
-| **C2** PIN-confirmation timing | **NOT RUN** | The guide places this measurement **during E2** (export → PIN confirm → save screen). That needs Group E actions (Backup Recovery Key setup and export), which were out of scope for this run. To be measured in E2 if approved. |
+| **C1** Login timing | **PASS** (accepted by the project owner) | **5.038–5.068 s, median 5.049 s**, from tap to Home. The UI stayed responsive: no frame gap above 16.6 ms. Detail in §9. |
+| **C2** PIN-confirmation timing | **NOT RUN** (intentional) | Measured as part of E2, as the operator guide specifies. |
 
 ### 5.1 Pre-test inspection findings: checklist vs. implementation
 
@@ -274,11 +274,12 @@ would need instrumented code, which was not added.
   the recovery-code check.
 - Slower (low-end) phones were **not** measured, and nothing is inferred
   for them. **Nothing is inferred for 600,000 iterations.**
-- A **hypothesis for review, not a measured finding:** much of the cost
-  may come from the pure-Dart HMAC-SHA256 implementation rather than the
-  iteration count itself. A platform or native implementation might
-  reach the same iteration count faster. Any change is a decision for the
-  project owner. **The 210,000 setting is unchanged.**
+- **Owner decision (2026-09-24):** the C1 result is accepted.
+  - The PBKDF2 setting stays at **210,000** and is **not** increased on
+    the basis of this result.
+  - **No KDF-only timing is inferred** from the 5.05 s login
+    measurement.
+  - Group D waits for approval.
 
 ## 10. Recovery results (Group D)
 
