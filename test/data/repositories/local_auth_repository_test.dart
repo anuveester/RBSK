@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:referredline/core/errors/failure.dart';
+import 'package:referredline/core/security/secret_code.dart';
 import 'package:referredline/data/local/app_database.dart';
 import 'package:referredline/data/local/auth/credential_hasher.dart';
 import 'package:referredline/data/local/enums.dart';
@@ -79,10 +80,10 @@ void main() {
     test(
       'Admin setup creates exactly one ADMIN user and authenticates it',
       () async {
-        final session = await h.repo().setupBootstrapAdmin(
+        final session = (await h.repo().setupBootstrapAdmin(
           displayName: '  Synthetic Admin  ',
           pin: _pin,
-        );
+        )).session;
         final row = await h.db.select(h.db.users).getSingle();
 
         expect(session.role, AppRole.ADMIN);
@@ -165,15 +166,23 @@ void main() {
     test('neither secure storage nor the users table contains it after '
         'setup, logout and login', () async {
       final repo = h.repo();
-      final session = await repo.setupBootstrapAdmin(
+      final issued = await repo.setupBootstrapAdmin(
         displayName: 'Admin',
         pin: _pin,
+      );
+      final session = issued.session;
+      final code = SecretCode.parse(
+        issued.recoveryCode!,
+        SecretCodeKind.adminRecovery,
       );
       await repo.logout();
       await repo.login(userId: session.userId, pin: _pin);
 
       for (final entry in h.store.values.entries) {
         expect(entry.value, isNot(contains(_pin)), reason: entry.key);
+        // Nor the Admin Recovery Code, in any form.
+        expect(entry.value, isNot(contains(code.canonical)), reason: entry.key);
+        expect(entry.value, isNot(contains(issued.recoveryCode!)), reason: entry.key);
       }
       final rows = await h.db.customSelect('SELECT * FROM users').get();
       for (final row in rows) {

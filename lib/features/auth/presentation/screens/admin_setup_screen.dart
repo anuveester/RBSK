@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:referredline/core/security/secret_code.dart';
 
 import '../../../../core/auth/pin_policy.dart';
 import '../../../../core/errors/failure.dart';
+import '../../../../core/router/routes.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/pin_field.dart';
+import '../widgets/recovery_code_display.dart';
 
-/// First-run Admin setup (docs/27_PHASE_1_4_PLAN.md §0, decision 7). Only
-/// reachable while no user exists; the router and `LocalAuthRepository`
-/// both refuse it afterwards.
+/// First-run Admin setup (docs/27_PHASE_1_4_PLAN.md §0, decision 7), then a
+/// one-time display of the Admin Recovery Code (docs/30 R1). Only reachable
+/// while no user exists; the router and `LocalAuthRepository` both refuse
+/// it afterwards.
 class AdminSetupScreen extends ConsumerStatefulWidget {
   const AdminSetupScreen({super.key});
 
@@ -22,6 +27,7 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
   final _confirmPin = TextEditingController();
   bool _busy = false;
   String? _error;
+  String? _recoveryCode;
 
   @override
   void dispose() {
@@ -55,9 +61,12 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
       _error = null;
     });
     try {
-      await ref
+      final code = await ref
           .read(authControllerProvider.notifier)
           .setupBootstrapAdmin(displayName: name, pin: pin);
+      if (mounted) {
+        setState(() => _recoveryCode = code);
+      }
     } on Failure catch (f) {
       if (mounted) {
         setState(() => _error = f.message);
@@ -77,8 +86,23 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final code = _recoveryCode;
+    if (code != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Keep this code safe')),
+        body: SafeArea(
+          child: RecoveryCodeDisplay(
+            code: code,
+            kind: SecretCodeKind.adminRecovery,
+            onConfirmed: () => ref
+                .read(authControllerProvider.notifier)
+                .completeAfterRecoveryCode(codeWasShown: true),
+          ),
+        ),
+      );
+    }
 
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Set up Administrator')),
       body: SafeArea(
@@ -92,10 +116,9 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'There is no PIN recovery in this version. Keep the PIN safe.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
+              'Next, you will be shown an Admin Recovery Code. Write it down '
+              '— it is the only way to reset a forgotten Admin PIN.',
+              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
             TextField(
@@ -140,6 +163,15 @@ class _AdminSetupScreenState extends ConsumerState<AdminSetupScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Create Administrator'),
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            TextButton(
+              key: const ValueKey('setup-restore'),
+              onPressed: _busy ? null : () => context.go(Routes.restore),
+              child: const Text(
+                'Replacing a phone? Restore from a recovery package',
+              ),
             ),
           ],
         ),

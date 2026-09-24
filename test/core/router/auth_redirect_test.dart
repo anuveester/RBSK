@@ -64,6 +64,47 @@ void main() {
     );
   });
 
+  test('recovery screens are reachable only where they apply', () {
+    // Database unavailable (status null): the restore screen, for recovery.
+    expect(resolveAuthRedirect(null, Routes.restore), isNull);
+    expect(resolveAuthRedirect(null, Routes.recoverPin), Routes.splash);
+    // First run: setup or restore (replacement phone).
+    expect(resolveAuthRedirect(const AuthUninitialized(), Routes.restore), isNull);
+    expect(
+      resolveAuthRedirect(const AuthUninitialized(), Routes.recoverPin),
+      Routes.setup,
+    );
+    // Logged out: PIN recovery and restore (which itself checks whether
+    // any Admin can log in).
+    expect(resolveAuthRedirect(const AuthLoggedOut(), Routes.recoverPin), isNull);
+    expect(resolveAuthRedirect(const AuthLoggedOut(), Routes.restore), isNull);
+    // Signed in: never.
+    for (final role in AppRole.values) {
+      expect(resolveAuthRedirect(_authenticated(role), Routes.restore), Routes.home);
+      expect(
+        resolveAuthRedirect(_authenticated(role), Routes.recoverPin),
+        Routes.home,
+      );
+    }
+  });
+
+  test('Admin-only screens: allowed for ADMIN, redirected for everyone else, '
+      'including by direct navigation', () {
+    for (final route in Routes.adminOnly) {
+      expect(resolveAuthRedirect(_authenticated(AppRole.ADMIN), route), isNull);
+      expect(
+        resolveAuthRedirect(_authenticated(AppRole.MEDICAL_OFFICER), route),
+        Routes.home,
+      );
+      expect(
+        resolveAuthRedirect(_authenticated(AppRole.TEAM_MEMBER), route),
+        Routes.home,
+      );
+      expect(resolveAuthRedirect(const AuthLoggedOut(), route), Routes.login);
+      expect(resolveAuthRedirect(null, route), Routes.splash);
+    }
+  });
+
   for (final role in AppRole.values) {
     test('AUTHENTICATED ${role.name}: login, setup and splash redirect to '
         'Home', () {

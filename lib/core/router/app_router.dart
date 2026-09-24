@@ -6,7 +6,11 @@ import '../../domain/entities/auth_status.dart';
 import '../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../features/auth/presentation/screens/admin_setup_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/pin_recovery_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/recovery/presentation/screens/backup_screen.dart';
+import '../../features/recovery/presentation/screens/recovery_code_screen.dart';
+import '../../features/recovery/presentation/screens/restore_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/more/presentation/screens/more_screen.dart';
 import '../../features/referrals/presentation/screens/referrals_placeholder_screen.dart';
@@ -60,6 +64,16 @@ GoRouter createRouter({
         name: Routes.loginName,
         builder: (context, state) => const LoginScreen(),
       ),
+      GoRoute(
+        path: Routes.recoverPin,
+        name: Routes.recoverPinName,
+        builder: (context, state) => const PinRecoveryScreen(),
+      ),
+      GoRoute(
+        path: Routes.restore,
+        name: Routes.restoreName,
+        builder: (context, state) => const RestoreScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),
@@ -106,6 +120,18 @@ GoRouter createRouter({
                 path: Routes.more,
                 name: Routes.moreName,
                 builder: (context, state) => const MoreScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'recovery-code',
+                    name: Routes.moreRecoveryCodeName,
+                    builder: (context, state) => const RecoveryCodeScreen(),
+                  ),
+                  GoRoute(
+                    path: 'backup',
+                    name: Routes.moreBackupName,
+                    builder: (context, state) => const BackupScreen(),
+                  ),
+                ],
               ),
             ],
           ),

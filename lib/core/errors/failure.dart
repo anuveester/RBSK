@@ -52,3 +52,56 @@ final class AccountLockedFailure extends Failure {
 final class NoActiveSessionFailure extends Failure {
   const NoActiveSessionFailure() : super('No active session.');
 }
+
+/// Recovery failures. Messages are written for a Medical Officer, not a
+/// developer, and never contain code or key material.
+final class NoRecoveryCodeFailure extends Failure {
+  const NoRecoveryCodeFailure()
+    : super('No Admin Recovery Code has been set up on this phone.');
+}
+
+final class InvalidRecoveryCodeFailure extends Failure {
+  const InvalidRecoveryCodeFailure()
+    : super('That recovery code is not correct. Please check it and try again.');
+}
+
+final class RecoveryCodeTypingFailure extends Failure {
+  const RecoveryCodeTypingFailure(super.message);
+}
+
+final class RecoveryAccountUnavailableFailure extends Failure {
+  const RecoveryAccountUnavailableFailure()
+    : super('The Admin account for this recovery code is not active on this phone.');
+}
+
+final class InvalidBackupKeyFailure extends Failure {
+  const InvalidBackupKeyFailure()
+    : super('That Backup Recovery Key is not correct for this data.');
+}
+
+final class NoBackupKeyFailure extends Failure {
+  const NoBackupKeyFailure()
+    : super('The Backup Recovery Key has not been set up on this phone yet.');
+}
+
+final class AdminAccessRestoreNotAllowedFailure extends Failure {
+  const AdminAccessRestoreNotAllowedFailure()
+    : super(
+        'An Admin can already log in on this phone. '
+        'Use the Admin Recovery Code if the PIN is forgotten.',
+      );
+}
+
+final class NotAuthorizedFailure extends Failure {
+  const NotAuthorizedFailure() : super('Only an Admin can do this.');
+}
+
+/// Secure storage on the phone could not be read or written. Nothing was
+/// deleted.
+final class SecureStorageFailure extends Failure {
+  const SecureStorageFailure()
+    : super(
+        'This phone’s secure storage could not be used just now. '
+        'Nothing has been deleted. Please try again.',
+      );
+}

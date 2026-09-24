@@ -79,9 +79,39 @@ void main() {
       await tester.enterText(_key('setup-pin'), _setupPin);
       await tester.enterText(_key('setup-confirm-pin'), _setupPin);
       await tester.tap(_key('setup-submit'));
+
+      // The Admin Recovery Code is shown once, and the app does not move on
+      // until the Admin confirms it is written down.
+      await settle(tester, until: _key('recovery-code-text'));
+      final code = tester.widget<Text>(_key('recovery-code-text')).data!;
+      expect(code, startsWith('AR-'));
+      expect(find.byType(HomeScreen), findsNothing);
+      final scrollable = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(
+        _key('recovery-code-continue'),
+        100,
+        scrollable: scrollable,
+      );
+      expect(
+        tester.widget<FilledButton>(_key('recovery-code-continue')).onPressed,
+        isNull,
+        reason: 'nothing confirmed yet',
+      );
+      await tester.enterText(_key('recovery-code-confirm'), 'XXX');
+      await tester.pump();
+      expect(
+        tester.widget<FilledButton>(_key('recovery-code-continue')).onPressed,
+        isNull,
+        reason: 'box not ticked and wrong last group',
+      );
+      await confirmRecoveryCode(tester, code);
       await settle(tester, until: find.byType(HomeScreen));
 
       expect(find.byType(NavigationBar), findsOneWidget);
+      for (final value in h.store.values.values) {
+        expect(value, isNot(contains(code)));
+        expect(value, isNot(contains(code.replaceAll('-', '').substring(2))));
+      }
       final users = await tester.runAsync(() => h.db.select(h.db.users).get());
       expect(users, hasLength(1));
       expect(users!.single.role, AppRole.ADMIN);

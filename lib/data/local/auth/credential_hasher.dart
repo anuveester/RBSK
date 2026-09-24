@@ -1,124 +1,157 @@
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
+import 'package:referredline/core/security/crypto_utils.dart';
 
-/// Derives and verifies the local credential verifier for Phase 1.4's Option
-/// A authentication (docs/28_AUTHENTICATION_ARCHITECTURE_DECISION.md §7,
-/// §11, §18). The raw PIN is never stored — only this derived, salted,
-/// one-way verifier is.
+/// Derives and verifies local credential verifiers (6-digit PINs, and the
+/// Admin Recovery Code). Only the derived, salted, one-way verifier is ever
+/// stored — never the secret itself.
 ///
-/// **Algorithm: PBKDF2-HMAC-SHA256.** Chosen over a fast hash (plain SHA-256
-/// via `package:crypto`, explicitly rejected per the approved final
-/// decisions) because a 6-digit PIN's small keyspace (§Parameters below)
-/// needs a deliberately slow, tunable primitive to resist offline brute
-/// force if the stored verifier is ever extracted. `pointycastle` was
-/// selected over alternatives (`bcrypt`, `argon2`-family packages) after
-/// checking pub.dev directly this phase: it is pure Dart (no native/platform
-/// build step — this project already has one native-build dependency,
-/// `sqlite3mc`, and deliberately avoids a second one), has ~3.66M downloads
-/// and 415 likes (vs. the `bcrypt` package's ~50k downloads / 45 likes),
-/// and is compatible with this project's Dart SDK constraint (`^3.13.2`).
-/// Argon2 (memory-hard, arguably stronger) was not chosen because the
-/// actively-maintained Dart/Flutter options for it are native-binding based,
-/// which would repeat the exact native-build fragility this project already
-/// hit once with `sqlcipher_flutter_libs` (docs/24_PHASE_1_2_REPORT.md §C) —
-/// not a risk worth taking for this phase's credential layer.
+/// **Approved KDF (docs/30 §6, approved for now):** PBKDF2-HMAC-SHA256,
+/// 210,000 iterations, 16-byte random salt, 32-byte derived key. The
+/// iteration count is below OWASP's current 600,000; raising it is deferred
+/// until a real Android device can be benchmarked. It lives only in
+/// [CredentialKdfPolicy.current] — change it there and existing verifiers
+/// are upgraded on the next successful login (see
+/// `LocalAuthRepository.login`), with no migration.
 ///
-/// **Parameters:**
-/// - Iterations: **210,000**. OWASP's current (2023) Password Storage Cheat
-///   Sheet recommends 600,000 for PBKDF2-HMAC-SHA256, benchmarked against
-///   dedicated GPU hardware attacking a *stolen* verifier. This
-///   implementation uses 210,000 instead — a deliberate, documented
-///   trade-off, not an oversight: it runs as pure Dart (not
-///   hardware-accelerated native code) on Android hardware as old as
-///   `minSdk 26`, and login happens many times per field workday, so
-///   verification latency matters for a shared departmental device. 210,000
-///   is still far above the widely-deployed 100,000-iteration baseline from
-///   a decade of PBKDF2 usage. The iteration count is embedded in the
-///   verifier string itself (see Verifier format below), so raising it later
-///   never invalidates existing verifiers — each user's verifier is
-///   upgraded transparently the next time they reset their credential, the
-///   standard PBKDF2 upgrade path. **This value has not been benchmarked on
-///   real RBSK field hardware in this environment — benchmarking on an
-///   actual target device before production rollout is recommended, not
-///   assumed adequate.**
-/// - Salt: 16 bytes (128-bit), generated with `Random.secure()` per
-///   credential — the same cryptographically secure generator already
-///   proven for the database encryption passphrase
-///   (`database_connection.dart`'s `generatePassphrase()`). The salt is
-///   **not treated as a secret** — it is stored alongside the derived hash
-///   in the verifier string, exactly as PBKDF2's design intends; its purpose
-///   is to defeat precomputed (rainbow-table) attacks and ensure two users
-///   with the same PIN get unrelated stored verifiers, not to add secrecy.
-/// - Derived key length: 32 bytes (256-bit).
+/// **Why PBKDF2 and not Argon2id:** an earlier version of this comment (and
+/// docs/27 §0.1) said Argon2 was rejected because the Dart options rely on
+/// native bindings. That was wrong: `pointycastle` 4.0.0 — this dependency —
+/// includes pure-Dart Argon2id. The actual reasons (docs/30 §4.4): for a
+/// 6-digit PIN no KDF prevents offline exhaustion of 10⁶ values, the verifier
+/// is only reachable by an attacker who can already read the database key,
+/// and pure-Dart Argon2id performance and memory on target devices are
+/// unmeasured.
 ///
-/// **Verifier format:** `pbkdf2-hmac-sha256$<iterations>$<base64 salt>$<base64 hash>`
-/// — a single self-describing string (the same style as Django's/Werkzeug's
-/// password-hash format), so the algorithm and iteration count travel with
-/// the verifier rather than being assumed from context.
-const String credentialAlgorithmTag = 'pbkdf2-hmac-sha256';
-const int credentialIterations = 210000;
-const int _saltLengthBytes = 16;
-const int _derivedKeyLengthBytes = 32;
+/// **Verifier format:** `pbkdf2-hmac-sha256$<iterations>$<base64 salt>$<base64 key>`.
+/// Self-describing, so each stored verifier carries the parameters it was
+/// made with.
+class CredentialKdfPolicy {
+  const CredentialKdfPolicy({
+    required this.iterations,
+    this.saltLengthBytes = 16,
+    this.derivedKeyLengthBytes = 32,
+  });
 
-/// Runs [deriveCredentialVerifier] on a background isolate. At 210,000
-/// iterations the derivation is CPU-bound for a noticeable moment; running
-/// it on the UI isolate would freeze the screen (including its progress
-/// indicator) while it computes.
-Future<String> deriveCredentialVerifierInBackground(String pin) =>
-    Isolate.run(() => deriveCredentialVerifier(pin));
-
-/// Runs [verifyCredential] on a background isolate — see
-/// [deriveCredentialVerifierInBackground].
-Future<bool> verifyCredentialInBackground(String pin, String verifier) =>
-    Isolate.run(() => verifyCredential(pin, verifier));
-
-/// Derives a verifier string for [pin]. Never logs or returns the raw PIN.
-String deriveCredentialVerifier(String pin) {
-  final salt = _randomBytes(_saltLengthBytes);
-  final derived = _pbkdf2(
-    utf8.encode(pin),
-    salt,
-    credentialIterations,
-    _derivedKeyLengthBytes,
+  /// The approved parameters in force. The only place they are defined.
+  static const CredentialKdfPolicy current = CredentialKdfPolicy(
+    iterations: 210000,
   );
-  return '$credentialAlgorithmTag\$$credentialIterations\$'
-      '${base64Encode(salt)}\$${base64Encode(derived)}';
+
+  static const String algorithmTag = 'pbkdf2-hmac-sha256';
+
+  final int iterations;
+  final int saltLengthBytes;
+  final int derivedKeyLengthBytes;
 }
 
-/// Verifies [pin] against a previously-derived [verifier]. Returns false
-/// (never throws) for a malformed verifier — a corrupted stored value must
-/// fail closed, not crash the login screen.
-bool verifyCredential(String pin, String verifier) {
-  final parts = verifier.split(r'$');
-  if (parts.length != 4 || parts[0] != credentialAlgorithmTag) {
-    return false;
-  }
+// Bounds for accepting a stored verifier. A value outside them is treated as
+// corrupted and fails closed: too few iterations would make a tampered
+// verifier cheap to satisfy; an absurd count would hang verification.
+const int _minAcceptedIterations = 10000;
+const int _maxAcceptedIterations = 10000000;
+const int _minAcceptedSaltBytes = 16;
+const int _minAcceptedKeyBytes = 32;
+const int _maxAcceptedKeyBytes = 64;
 
-  final iterations = int.tryParse(parts[1]);
-  if (iterations == null || iterations <= 0) {
-    return false;
-  }
+class _ParsedVerifier {
+  const _ParsedVerifier(this.iterations, this.salt, this.key);
 
+  final int iterations;
   final Uint8List salt;
-  final Uint8List expected;
+  final Uint8List key;
+}
+
+_ParsedVerifier? _parse(String verifier) {
+  final parts = verifier.split(r'$');
+  if (parts.length != 4 || parts[0] != CredentialKdfPolicy.algorithmTag) {
+    return null;
+  }
+  final iterations = int.tryParse(parts[1]);
+  if (iterations == null ||
+      iterations < _minAcceptedIterations ||
+      iterations > _maxAcceptedIterations) {
+    return null;
+  }
+  final Uint8List salt;
+  final Uint8List key;
   try {
     salt = base64Decode(parts[2]);
-    expected = base64Decode(parts[3]);
+    key = base64Decode(parts[3]);
   } on FormatException {
-    return false;
+    return null;
   }
   // An empty or truncated key would compare equal to an equally short
   // derivation, so such a verifier would accept any PIN. Fail closed.
-  if (expected.length != _derivedKeyLengthBytes) {
+  if (salt.length < _minAcceptedSaltBytes ||
+      key.length < _minAcceptedKeyBytes ||
+      key.length > _maxAcceptedKeyBytes) {
+    return null;
+  }
+  return _ParsedVerifier(iterations, salt, key);
+}
+
+/// Runs [deriveCredentialVerifier] on a background isolate. The derivation
+/// is CPU-bound for a noticeable moment; running it on the UI isolate would
+/// freeze the screen (including its progress indicator).
+Future<String> deriveCredentialVerifierInBackground(
+  String secret, {
+  CredentialKdfPolicy policy = CredentialKdfPolicy.current,
+}) => Isolate.run(() => deriveCredentialVerifier(secret, policy: policy));
+
+/// Runs [verifyCredential] on a background isolate.
+Future<bool> verifyCredentialInBackground(String secret, String verifier) =>
+    Isolate.run(() => verifyCredential(secret, verifier));
+
+/// Derives a verifier string for [secret]. Never logs or returns the secret.
+String deriveCredentialVerifier(
+  String secret, {
+  CredentialKdfPolicy policy = CredentialKdfPolicy.current,
+}) {
+  final salt = secureRandomBytes(policy.saltLengthBytes);
+  final derived = _pbkdf2(
+    utf8.encode(secret),
+    salt,
+    policy.iterations,
+    policy.derivedKeyLengthBytes,
+  );
+  return '${CredentialKdfPolicy.algorithmTag}\$${policy.iterations}\$'
+      '${base64Encode(salt)}\$${base64Encode(derived)}';
+}
+
+/// Verifies [secret] against a stored [verifier]. Returns false (never
+/// throws) for a malformed or out-of-bounds verifier.
+bool verifyCredential(String secret, String verifier) {
+  final parsed = _parse(verifier);
+  if (parsed == null) {
     return false;
   }
+  final actual = _pbkdf2(
+    utf8.encode(secret),
+    parsed.salt,
+    parsed.iterations,
+    parsed.key.length,
+  );
+  return constantTimeEquals(actual, parsed.key);
+}
 
-  final actual = _pbkdf2(utf8.encode(pin), salt, iterations, expected.length);
-  return _constantTimeEquals(actual, expected);
+/// True if [verifier] was made with weaker parameters than [policy] and
+/// should be re-derived after the next successful verification. A verifier
+/// made with stronger parameters is left alone (no downgrade).
+bool verifierNeedsRehash(
+  String verifier, {
+  CredentialKdfPolicy policy = CredentialKdfPolicy.current,
+}) {
+  final parsed = _parse(verifier);
+  if (parsed == null) {
+    return false;
+  }
+  return parsed.iterations < policy.iterations ||
+      parsed.salt.length < policy.saltLengthBytes ||
+      parsed.key.length < policy.derivedKeyLengthBytes;
 }
 
 Uint8List _pbkdf2(
@@ -130,24 +163,4 @@ Uint8List _pbkdf2(
   final derivator = PBKDF2KeyDerivator(HMac(SHA256Digest(), 64))
     ..init(Pbkdf2Parameters(salt, iterations, keyLengthBytes));
   return derivator.process(Uint8List.fromList(password));
-}
-
-Uint8List _randomBytes(int length) {
-  final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(length, (_) => random.nextInt(256)),
-  );
-}
-
-/// Constant-time comparison — an early-exit `==` would leak timing
-/// information about how many leading bytes matched.
-bool _constantTimeEquals(List<int> a, List<int> b) {
-  if (a.length != b.length) {
-    return false;
-  }
-  var diff = 0;
-  for (var i = 0; i < a.length; i++) {
-    diff |= a[i] ^ b[i];
-  }
-  return diff == 0;
 }

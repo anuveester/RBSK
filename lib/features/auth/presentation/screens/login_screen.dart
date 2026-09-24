@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/auth/pin_policy.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failure.dart';
+import '../../../../core/router/routes.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/auth_providers.dart';
 import '../widgets/pin_field.dart';
@@ -127,6 +129,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       )
                     : const Text('Log in'),
               ),
+              const SizedBox(height: 16),
+              TextButton(
+                key: const ValueKey('login-forgot-pin'),
+                onPressed: _busy ? null : () => context.go(Routes.recoverPin),
+                child: const Text('Admin forgot the PIN? Use the Admin Recovery Code'),
+              ),
+              if (ref.watch(adminCanLogInProvider).value == false) ...[
+                const SizedBox(height: 8),
+                Card(
+                  key: const ValueKey('login-restored-banner'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'No Admin can log in on this phone yet. This happens '
+                          'after data is restored from a backup.',
+                        ),
+                        TextButton(
+                          key: const ValueKey('login-restore-admin'),
+                          onPressed: () => context.go(Routes.restore),
+                          child: const Text(
+                            'Set up Admin access with the Backup Recovery Key',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

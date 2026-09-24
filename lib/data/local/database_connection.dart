@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -17,53 +18,217 @@ import 'package:sqlite3/sqlite3.dart' as sqlite3;
 /// Drift-recommended replacement instead: the `sqlite3` package's native
 /// SQLite3MultipleCiphers build (selected via the `hooks.user_defines` block
 /// in pubspec.yaml), which is SQLCipher-compatible — same `PRAGMA key`
-/// mechanism, same cipher — and actively maintained. Nothing about the
-/// encryption REQUIREMENT changes; only the specific package implementing it
-/// does, because the one named in Phase 0 no longer exists as a working
-/// option.
-const _dbFileName = 'rbsk_referred_line.sqlite';
-const _secureStorageKeyName = 'rbsk_db_encryption_key_v1';
+/// mechanism, same cipher — and actively maintained.
+const String databaseFileName = 'rbsk_referred_line.sqlite';
+const String databaseKeyStorageName = 'rbsk_db_encryption_key_v1';
 
-/// Thin abstraction over "a place that securely persists one string", so
-/// [DatabaseKeyManager] is unit-testable without platform channels. The only
+/// Thin abstraction over "a place that securely persists strings", so key and
+/// credential handling is unit-testable without platform channels. The only
 /// production implementation is [FlutterSecureStorageKeyStore]
 /// (Android Keystore-backed); tests substitute an in-memory fake.
+///
+/// Implementations must throw [SecureStorageUnavailableException] when the
+/// platform store cannot be read or written — never return `null` for a
+/// value that exists but can't be decrypted.
 abstract interface class SecureKeyStore {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
 }
 
+/// The platform secure store could not be read or written. Carries no key
+/// names' values and no secret material.
+class SecureStorageUnavailableException implements Exception {
+  const SecureStorageUnavailableException(this.operation);
+
+  final String operation;
+
+  @override
+  String toString() => 'SecureStorageUnavailableException($operation)';
+}
+
 class FlutterSecureStorageKeyStore implements SecureKeyStore {
-  const FlutterSecureStorageKeyStore([this._storage = const FlutterSecureStorage()]);
+  const FlutterSecureStorageKeyStore._(this._storage);
+
+  /// Credentials, sessions, lockout state, recovery-code and backup-key
+  /// verifiers. Same storage location Phase 1.4 used (default namespace), so
+  /// existing entries stay readable.
+  ///
+  /// `resetOnError: false` is deliberate. The library's default (`true`)
+  /// deletes every entry it cannot decrypt (`deleteAllDataAndKeys`), which
+  /// would silently destroy credentials. An unreadable store now surfaces as
+  /// [SecureStorageUnavailableException] instead.
+  const FlutterSecureStorageKeyStore.general()
+    : this._(
+        const FlutterSecureStorage(
+          aOptions: AndroidOptions(resetOnError: false),
+        ),
+      );
+
+  /// The database encryption key only. `storageNamespace` gives it its own
+  /// SharedPreferences files and its own Android Keystore alias, so nothing
+  /// done to the general store — by this app or by the library's error
+  /// handling — can reach it. `resetOnError: false` for the same reason as
+  /// above.
+  const FlutterSecureStorageKeyStore.databaseKey()
+    : this._(
+        const FlutterSecureStorage(
+          aOptions: AndroidOptions(
+            resetOnError: false,
+            storageNamespace: 'rbsk_database_key',
+          ),
+        ),
+      );
 
   final FlutterSecureStorage _storage;
 
   @override
-  Future<String?> read(String key) => _storage.read(key: key);
+  Future<String?> read(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } on PlatformException {
+      throw const SecureStorageUnavailableException('read');
+    }
+  }
 
   @override
-  Future<void> write(String key, String value) =>
-      _storage.write(key: key, value: value);
+  Future<void> write(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } on PlatformException {
+      throw const SecureStorageUnavailableException('write');
+    }
+  }
 }
 
-/// Reads the database passphrase from secure storage, generating and
-/// persisting a new one on first launch. Never hardcoded, never logged,
-/// never stored in plain text alongside the database file.
+/// Why the database key could not be used. Deliberately coarse: none of these
+/// carry key material.
+enum DatabaseKeyUnavailableReason {
+  /// The secure store holding the key could not be read.
+  secureStorageUnreadable,
+
+  /// An encrypted database exists, but no key is stored for it.
+  keyMissingForExistingDatabase,
+
+  /// A key is stored, but it does not open the existing database.
+  keyDoesNotOpenDatabase,
+
+  /// A new or recovered key could not be saved and read back.
+  keyCouldNotBeSaved,
+}
+
+/// The existing encrypted database cannot be opened. The database file and
+/// every stored key are left exactly as they were — recovery is required,
+/// nothing was deleted or replaced.
+class DatabaseKeyUnavailableException implements Exception {
+  const DatabaseKeyUnavailableException(this.reason);
+
+  final DatabaseKeyUnavailableReason reason;
+
+  @override
+  String toString() => 'DatabaseKeyUnavailableException(${reason.name})';
+}
+
+final RegExp _keyFormat = RegExp(r'^[0-9a-f]{64}$');
+
+bool isWellFormedDatabaseKey(String? value) =>
+    value != null && _keyFormat.hasMatch(value);
+
+/// Resolves the database encryption key without ever destroying one.
+///
+/// A key is generated **only** when no database file exists (a genuine first
+/// run). A missing or unreadable key for an existing database is an explicit
+/// [DatabaseKeyUnavailableException] — never treated as a first launch, never
+/// answered by generating a replacement key.
 class DatabaseKeyManager {
-  DatabaseKeyManager({SecureKeyStore? store})
-    : _store = store ?? const FlutterSecureStorageKeyStore();
+  DatabaseKeyManager({SecureKeyStore? store, SecureKeyStore? legacyStore})
+    : _store = store ?? const FlutterSecureStorageKeyStore.databaseKey(),
+      _legacyStore =
+          legacyStore ??
+          (store == null ? const FlutterSecureStorageKeyStore.general() : null);
 
   final SecureKeyStore _store;
 
-  Future<String> getOrCreateKey() async {
-    final existing = await _store.read(_secureStorageKeyName);
-    if (existing != null && existing.isNotEmpty) {
+  /// Where Phase 1.2–1.4 stored the key (the general store). Read only, to
+  /// carry an existing key forward; never written or cleared.
+  final SecureKeyStore? _legacyStore;
+
+  /// Serializes key resolution within the process: two overlapping opens on
+  /// a first launch must agree on one key, not each generate their own.
+  static Future<void> _serial = Future<void>.value();
+
+  Future<String> resolveKey({required bool databaseFileExists}) {
+    final result = _serial.then(
+      (_) => _resolveKey(databaseFileExists: databaseFileExists),
+    );
+    _serial = result.then<void>((_) {}, onError: (_) {});
+    return result;
+  }
+
+  Future<String> _resolveKey({required bool databaseFileExists}) async {
+    final existing = await _readKey();
+    if (existing != null) {
       return existing;
     }
-
+    if (databaseFileExists) {
+      throw const DatabaseKeyUnavailableException(
+        DatabaseKeyUnavailableReason.keyMissingForExistingDatabase,
+      );
+    }
     final generated = generatePassphrase();
-    await _store.write(_secureStorageKeyName, generated);
+    await _writeVerified(generated);
     return generated;
+  }
+
+  /// Installs a key taken from a verified recovery package. A different key
+  /// already stored is preserved under a separate name, never discarded.
+  Future<void> installRecoveredKey(String key) async {
+    if (!isWellFormedDatabaseKey(key)) {
+      throw ArgumentError('Recovered key has an unexpected format.');
+    }
+    await _writeVerified(key);
+  }
+
+  Future<String?> _readKey() async {
+    try {
+      final current = await _store.read(databaseKeyStorageName);
+      if (isWellFormedDatabaseKey(current)) {
+        return current;
+      }
+      final legacyStore = _legacyStore;
+      if (legacyStore == null) {
+        return null;
+      }
+      final legacy = await legacyStore.read(databaseKeyStorageName);
+      if (!isWellFormedDatabaseKey(legacy)) {
+        return null;
+      }
+      await _writeVerified(legacy!);
+      return legacy;
+    } on SecureStorageUnavailableException {
+      throw const DatabaseKeyUnavailableException(
+        DatabaseKeyUnavailableReason.secureStorageUnreadable,
+      );
+    }
+  }
+
+  Future<void> _writeVerified(String key) async {
+    try {
+      final previous = await _store.read(databaseKeyStorageName);
+      if (previous != null && previous.isNotEmpty && previous != key) {
+        final stamp = DateTime.now().toUtc().microsecondsSinceEpoch;
+        await _store.write('$databaseKeyStorageName.preserved.$stamp', previous);
+      }
+      await _store.write(databaseKeyStorageName, key);
+      if (await _store.read(databaseKeyStorageName) != key) {
+        throw const DatabaseKeyUnavailableException(
+          DatabaseKeyUnavailableReason.keyCouldNotBeSaved,
+        );
+      }
+    } on SecureStorageUnavailableException {
+      throw const DatabaseKeyUnavailableException(
+        DatabaseKeyUnavailableReason.keyCouldNotBeSaved,
+      );
+    }
   }
 }
 
@@ -109,10 +274,36 @@ Future<void> configureSqlite3TempDirectory({
   sqlite3.sqlite3.tempDirectory = path;
 }
 
+/// The database file's location. [overrideDirectoryPath] is for tests.
+Future<File> databaseFile({String? overrideDirectoryPath}) async {
+  final directoryPath =
+      overrideDirectoryPath ?? (await getApplicationDocumentsDirectory()).path;
+  return File(p.join(directoryPath, databaseFileName));
+}
+
+/// True if [passphrase] decrypts the database at [file]. Opens read-only and
+/// changes nothing; any failure (wrong key, not a database) returns false.
+bool keyOpensDatabase(File file, String passphrase) {
+  final db = sqlite3.sqlite3.open(file.path, mode: sqlite3.OpenMode.readOnly);
+  try {
+    db.execute("PRAGMA key = '${escapeForSqlLiteral(passphrase)}';");
+    db.select('SELECT count(*) FROM sqlite_master');
+    return true;
+  } on sqlite3.SqliteException {
+    return false;
+  } finally {
+    db.close();
+  }
+}
+
 /// Opens the encrypted local database. Centralizes the only place the
 /// database file path, encryption key, and cipher verification are decided —
 /// per Phase 1.2 instruction §4, nothing else in the app should open a
 /// database connection directly.
+///
+/// Throws [DatabaseKeyUnavailableException] — without creating, replacing, or
+/// deleting anything — if a database exists but its key is missing,
+/// unreadable, or wrong.
 ///
 /// [overrideDirectoryPath], [overrideTempDirectoryPath] and [keyManager]
 /// exist for tests only (a temp-directory database with a throwaway key, and
@@ -127,12 +318,17 @@ Future<QueryExecutor> openEncryptedDatabase({
     overrideTempDirectoryPath: overrideTempDirectoryPath,
   );
 
-  final directoryPath =
-      overrideDirectoryPath ??
-      (await getApplicationDocumentsDirectory()).path;
-  final dbFile = File(p.join(directoryPath, _dbFileName));
+  final dbFile = await databaseFile(overrideDirectoryPath: overrideDirectoryPath);
+  final exists = await dbFile.exists();
 
-  final passphrase = await (keyManager ?? DatabaseKeyManager()).getOrCreateKey();
+  final passphrase = await (keyManager ?? DatabaseKeyManager()).resolveKey(
+    databaseFileExists: exists,
+  );
+  if (exists && !keyOpensDatabase(dbFile, passphrase)) {
+    throw const DatabaseKeyUnavailableException(
+      DatabaseKeyUnavailableReason.keyDoesNotOpenDatabase,
+    );
+  }
   final escapedPassphrase = escapeForSqlLiteral(passphrase);
 
   return NativeDatabase.createInBackground(

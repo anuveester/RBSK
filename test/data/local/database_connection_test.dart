@@ -69,11 +69,15 @@ void main() {
   });
 
   group('DatabaseKeyManager', () {
+    // API changed at security hardening: getOrCreateKey() became
+    // resolveKey(databaseFileExists:) so a missing key is never mistaken
+    // for a first launch. These are the original assertions, for the
+    // first-run case (no database file yet).
     test('generates a key on first use and persists it', () async {
       final store = _InMemorySecureKeyStore();
       final manager = DatabaseKeyManager(store: store);
 
-      final key = await manager.getOrCreateKey();
+      final key = await manager.resolveKey(databaseFileExists: false);
 
       expect(key, isNotEmpty);
       expect(await store.read('rbsk_db_encryption_key_v1'), key);
@@ -83,9 +87,9 @@ void main() {
       final store = _InMemorySecureKeyStore();
       final manager = DatabaseKeyManager(store: store);
 
-      final first = await manager.getOrCreateKey();
-      final second = await manager.getOrCreateKey();
-      final third = await manager.getOrCreateKey();
+      final first = await manager.resolveKey(databaseFileExists: false);
+      final second = await manager.resolveKey(databaseFileExists: true);
+      final third = await manager.resolveKey(databaseFileExists: true);
 
       expect(second, first);
       expect(third, first);
@@ -95,8 +99,10 @@ void main() {
       final managerA = DatabaseKeyManager(store: _InMemorySecureKeyStore());
       final managerB = DatabaseKeyManager(store: _InMemorySecureKeyStore());
 
-      expect(await managerA.getOrCreateKey(),
-          isNot(await managerB.getOrCreateKey()));
+      expect(
+        await managerA.resolveKey(databaseFileExists: false),
+        isNot(await managerB.resolveKey(databaseFileExists: false)),
+      );
     });
   });
 
@@ -176,24 +182,42 @@ void main() {
             );
         await db1.close();
 
-        // A different key manager with an UNRELATED store — simulates a
-        // fresh app install / a different device without the real key.
-        final wrongKeyStore = _InMemorySecureKeyStore();
-        final executor2 = await openEncryptedDatabase(
-          keyManager: DatabaseKeyManager(store: wrongKeyStore),
-          overrideDirectoryPath: tempDir.path,
-          overrideTempDirectoryPath: tempDir.path,
-        );
-        final db2 = AppDatabase(executor2);
+        final file = File('${tempDir.path}/rbsk_referred_line.sqlite');
+        final before = file.readAsBytesSync();
+        // The raw file is not plaintext SQLite: no standard header, and the
+        // stored label is not readable in it.
+        expect(String.fromCharCodes(before.sublist(0, 15)), isNot('SQLite format 3'));
+        expect(String.fromCharCodes(before), isNot(contains('2025-26')));
 
-        // Opening with the wrong key must not yield readable data: the
-        // file's on-disk header itself no longer looks like SQLite to a
-        // connection keyed differently, so schema/table reads fail.
+        // A key manager holding an UNRELATED key — a different device or a
+        // corrupted store. Since security hardening the wrong key is caught
+        // before the database is used at all (it used to fail on the first
+        // query), and nothing is created or replaced.
+        final wrongKeyStore = _InMemorySecureKeyStore();
+        await wrongKeyStore.write('rbsk_db_encryption_key_v1', generatePassphrase());
+        final wrongKey = await wrongKeyStore.read('rbsk_db_encryption_key_v1');
+
         await expectLater(
-          db2.select(db2.financialYears).get(),
-          throwsA(isA<Object>()),
+          openEncryptedDatabase(
+            keyManager: DatabaseKeyManager(store: wrongKeyStore),
+            overrideDirectoryPath: tempDir.path,
+            overrideTempDirectoryPath: tempDir.path,
+          ),
+          throwsA(
+            isA<DatabaseKeyUnavailableException>().having(
+              (e) => e.reason,
+              'reason',
+              DatabaseKeyUnavailableReason.keyDoesNotOpenDatabase,
+            ),
+          ),
         );
-        await db2.close();
+        expect(keyOpensDatabase(file, wrongKey!), isFalse);
+        expect(file.readAsBytesSync(), before, reason: 'file untouched');
+        expect(
+          await wrongKeyStore.read('rbsk_db_encryption_key_v1'),
+          wrongKey,
+          reason: 'no key replaced',
+        );
       },
       timeout: realDiskTimeout,
     );
