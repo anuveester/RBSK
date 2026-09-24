@@ -22,8 +22,8 @@ import 'package:sqlite3/sqlite3.dart' as sqlite3;
 const String databaseFileName = 'rbsk_referred_line.sqlite';
 const String databaseKeyStorageName = 'rbsk_db_encryption_key_v1';
 
-/// Thin abstraction over "a place that securely persists strings", so key and
-/// credential handling is unit-testable without platform channels. The only
+/// Thin abstraction over "a place that securely persists strings", so key
+/// handling is unit-testable without platform channels. The only
 /// production implementation is [FlutterSecureStorageKeyStore]
 /// (Android Keystore-backed); tests substitute an in-memory fake.
 ///
@@ -49,13 +49,12 @@ class SecureStorageUnavailableException implements Exception {
 class FlutterSecureStorageKeyStore implements SecureKeyStore {
   const FlutterSecureStorageKeyStore._(this._storage);
 
-  /// Credentials, sessions, lockout state, recovery-code and backup-key
-  /// verifiers. Same storage location Phase 1.4 used (default namespace), so
-  /// existing entries stay readable.
+  /// The default-namespace store, where Phase 1.2 first kept the database
+  /// key. Only read, by [DatabaseKeyManager], to carry such a key forward.
   ///
   /// `resetOnError: false` is deliberate. The library's default (`true`)
   /// deletes every entry it cannot decrypt (`deleteAllDataAndKeys`), which
-  /// would silently destroy credentials. An unreadable store now surfaces as
+  /// could silently destroy a key. An unreadable store surfaces as
   /// [SecureStorageUnavailableException] instead.
   const FlutterSecureStorageKeyStore.general()
     : this._(
@@ -112,13 +111,13 @@ enum DatabaseKeyUnavailableReason {
   /// A key is stored, but it does not open the existing database.
   keyDoesNotOpenDatabase,
 
-  /// A new or recovered key could not be saved and read back.
+  /// A new key could not be saved and read back.
   keyCouldNotBeSaved,
 }
 
 /// The existing encrypted database cannot be opened. The database file and
-/// every stored key are left exactly as they were — recovery is required,
-/// nothing was deleted or replaced.
+/// every stored key are left exactly as they were: nothing was deleted or
+/// replaced.
 class DatabaseKeyUnavailableException implements Exception {
   const DatabaseKeyUnavailableException(this.reason);
 
@@ -148,8 +147,8 @@ class DatabaseKeyManager {
 
   final SecureKeyStore _store;
 
-  /// Where Phase 1.2–1.4 stored the key (the general store). Read only, to
-  /// carry an existing key forward; never written or cleared.
+  /// Where earlier builds stored the key (the default-namespace store). Read
+  /// only, to carry an existing key forward; never written or cleared.
   final SecureKeyStore? _legacyStore;
 
   /// Serializes key resolution within the process: two overlapping opens on
@@ -177,88 +176,6 @@ class DatabaseKeyManager {
     final generated = generatePassphrase();
     await _writeVerified(generated);
     return generated;
-  }
-
-  /// Installs a key taken from a verified recovery package. A different key
-  /// already stored is preserved under a separate name, never discarded.
-  Future<void> installRecoveredKey(String key) async {
-    if (!isWellFormedDatabaseKey(key)) {
-      throw ArgumentError('Recovered key has an unexpected format.');
-    }
-    await _writeVerified(key);
-  }
-
-  /// The key that opens the current database, if one is stored. Reads only:
-  /// never generates, migrates or writes a key. Throws
-  /// [DatabaseKeyUnavailableException] if the store can't be read.
-  Future<String?> readCurrentKey() async {
-    try {
-      final current = await _store.read(databaseKeyStorageName);
-      if (isWellFormedDatabaseKey(current)) {
-        return current;
-      }
-      final legacy = await _legacyStore?.read(databaseKeyStorageName);
-      return isWellFormedDatabaseKey(legacy) ? legacy : null;
-    } on SecureStorageUnavailableException {
-      throw const DatabaseKeyUnavailableException(
-        DatabaseKeyUnavailableReason.secureStorageUnreadable,
-      );
-    }
-  }
-
-  static const String _rollbackSlot = '$databaseKeyStorageName.restore-rollback';
-  static const String _noKey = '-';
-
-  /// Before a restore: remembers exactly what is stored now (including
-  /// "nothing"), so [rollBackToSavedPoint] can put it back.
-  Future<void> saveRollbackPoint() async {
-    try {
-      final current = await _store.read(databaseKeyStorageName);
-      final value = (current == null || current.isEmpty) ? _noKey : current;
-      await _store.write(_rollbackSlot, value);
-      if (await _store.read(_rollbackSlot) != value) {
-        throw const DatabaseKeyUnavailableException(
-          DatabaseKeyUnavailableReason.keyCouldNotBeSaved,
-        );
-      }
-    } on SecureStorageUnavailableException {
-      throw const DatabaseKeyUnavailableException(
-        DatabaseKeyUnavailableReason.keyCouldNotBeSaved,
-      );
-    }
-  }
-
-  /// Undoes a restore's key change. The restored key is not discarded: it
-  /// is preserved like any other replaced key. Does nothing if no rollback
-  /// point was saved.
-  Future<void> rollBackToSavedPoint() async {
-    final String? saved;
-    final String? current;
-    try {
-      saved = await _store.read(_rollbackSlot);
-      current = await _store.read(databaseKeyStorageName);
-    } on SecureStorageUnavailableException {
-      throw const DatabaseKeyUnavailableException(
-        DatabaseKeyUnavailableReason.secureStorageUnreadable,
-      );
-    }
-    if (saved == null || saved.isEmpty) {
-      return;
-    }
-    final previous = saved == _noKey ? '' : saved;
-    if ((current ?? '') == previous) {
-      return; // The key was never changed.
-    }
-    await _writeVerified(previous);
-  }
-
-  /// After a restore has been committed or rolled back.
-  Future<void> clearRollbackPoint() async {
-    try {
-      await _store.write(_rollbackSlot, '');
-    } on SecureStorageUnavailableException {
-      // Harmless leftover: it is overwritten before the next restore.
-    }
   }
 
   Future<String?> _readKey() async {

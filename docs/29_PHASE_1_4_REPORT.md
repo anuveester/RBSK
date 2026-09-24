@@ -1,5 +1,12 @@
 # Phase 1.4 — Implementation Report
 
+> **HISTORICAL — REMOVED IMPLEMENTATION (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
+> This document describes the removed implementation (and, where relevant,
+> the backup/recovery features removed with it). None of the code it
+> describes is part of the current application, and this document is not a
+> plan for restoring it. Current status:
+> [00_PROJECT_MASTER_PLAN.md](00_PROJECT_MASTER_PLAN.md) §0.
+
 **Status: IMPLEMENTED — independent verification completed (PASS WITH
 FIXES, §20). NOT CLOSED.** Closure requires your explicit approval, the same
 as Phases 1.1–1.3. §1–§19 describe the implementation as reported at

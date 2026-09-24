@@ -1,7 +1,17 @@
 # Real-Device Security Validation Report: Phase 1.4
 
-> **STATUS: IN PROGRESS — Groups A, B and C run on one physical phone
-> (2026-09-24). Groups D–K NOT RUN.** This report is filled in only from tests actually
+> **HISTORICAL — REMOVED IMPLEMENTATION (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
+> This document describes the removed implementation (and, where relevant,
+> the backup/recovery features removed with it). None of the code it
+> describes is part of the current application, and this document is not a
+> plan for restoring it. Current status:
+> [00_PROJECT_MASTER_PLAN.md](00_PROJECT_MASTER_PLAN.md) §0.
+>
+> **Real-device testing with this document is permanently stopped.**
+
+> **STATUS: PERMANENTLY STOPPED (2026-09-24).** Groups A, B and C were run
+> on one physical phone; Group D was stopped part-way (§5.0d); Groups E–K
+> were never run. This report is filled in only from tests actually
 > performed on a real Android phone (driven over ADB, with the tester
 > holding the phone). Nothing here is marked PASS on the basis of
 > automated tests or assumption.
@@ -148,6 +158,32 @@ attempt was made. The helper was fixed and B1 re-run.
 |---|---|---|
 | **C1** Login timing | **PASS** (accepted by the project owner) | **5.038–5.068 s, median 5.049 s**, from tap to Home. The UI stayed responsive: no frame gap above 16.6 ms. Detail in §9. |
 | **C2** PIN-confirmation timing | **NOT RUN** (intentional) | Measured as part of E2, as the operator guide specifies. |
+
+### 5.0d Group D (phone 1), stopped
+
+Run on 2026-09-24 and then **permanently stopped**, because the
+authentication implementation was removed. These results describe the
+removed implementation only.
+
+**Before D2, the app was uninstalled and reinstalled.** The tester
+uninstalled the app on their own; this was not a test step. That erased
+the Group A setup (all synthetic data). On instruction, the same verified
+APK was reinstalled and first-run setup repeated as preparation (not
+re-scored). The tester recorded a new AR code.
+
+| Test | Result | Observed |
+|---|---|---|
+| **D1** Forgot PIN screen | **PASS** | "Reset Admin PIN" screen with the code field, two new-PIN fields and a Reset button |
+| **D2** Valid Admin Recovery Code | **PASS** | Accepted in every reset (the tester typed the code; it was never shown to or printed by the harness) |
+| **D3** New PIN plus new one-time code | **PASS** | "PIN reset — new recovery code" screen. Continue was enabled only after the tick and the correct last 3 characters. Then Home; no warning on More. |
+| **D4a** Old PIN refused | **PASS** | The previous test PIN gave "Incorrect PIN."; Test Admin 001 was still listed (data kept) |
+| **D4b** Login with the new PIN, **original attempt** | **FAIL — not reproduced; cause not determined** | After the first reset, the PIN the **tester** chose and typed was refused ("Incorrect PIN"). The PIN fields are obscured, so what was typed could not be checked. It is **not** claimed that this was a typing error. |
+| D4b, second tester-chosen PIN (supporting evidence) | Worked | After a second reset (tester-driven), the tester's chosen PIN opened Home; Home was verified on screen |
+| **D4b controlled re-test** | **PASS** | The tester typed only the code. The harness typed a fresh synthetic PIN into both fields, with 6 characters confirmed in each before Reset. Reset succeeded, and the new code was written down and confirmed by the tester. After logout, the harness logged in with that PIN → **Home**. |
+| **D5** Used code refused | **NOT RUN** | The tester dismissed the step; then testing was stopped |
+| **D6** | **NOT RUN** | Depends on the Backup Recovery Key (Group E) |
+
+Groups E–K: **NOT RUN, permanently stopped** (implementation removed).
 
 ### 5.1 Pre-test inspection findings: checklist vs. implementation
 

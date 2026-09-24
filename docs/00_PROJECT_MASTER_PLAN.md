@@ -17,29 +17,26 @@ block, or material revision — not only at project end.** See §13.
 ## 0. Current Status
 
 ```
-CURRENT PHASE:          Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell
-PHASE STATUS:           IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION
-                         APPROVAL — verification pass completed: PASS WITH
-                         FIXES (2 defects fixed in b11abf2; docs/29 §20).
-                         NOT CLOSED. Commits b797ac3, 09f4b0b, 4fe2e06,
-                         b11abf2.
+CURRENT PHASE:          Phase 1.4 — authentication REMOVED (2026-09-24);
+                         navigation shell retained
+PHASE STATUS:           The Phase 1.4 authentication implementation was
+                         intentionally removed. Authentication will be
+                         redesigned and implemented from scratch after the
+                         complete functional application is finished.
+                         The app now starts directly in the main shell.
+                         NOT CLOSED.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
-                         Layer (APPROVED / CLOSED, unchanged by Phase 1.4).
-CURRENT TASK:           None — final security review done (fixes +
-                         tests; docs/31 §20; device checklist docs/32),
-                         awaiting your review
-NEXT APPROVAL REQUIRED: Real-device validation in progress: tester runs
-                         docs/34 (operator guide) with app-release.apk;
-                         results go to docs/33 (currently NO device test
-                         performed). Then Phase 1.4 closure decision
-BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA (not Phase 1.4
-                         closure): real-device test campaign incl. recovery,
-                         backup/restore and KDF benchmark (§10 #22); custody
-                         of recovery secrets (#23); package storage policy
-                         (#25); inactivity re-lock (#14); user management
-                         (#15). Full list: docs/31 §16.
+                         Layer (APPROVED / CLOSED, unchanged).
+CURRENT TASK:           None — authentication removal done (§12), awaiting
+                         your review
+NEXT APPROVAL REQUIRED: Review of the removal; Phase 1.4 closure decision /
+                         next phase
+BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA: authentication and
+                         authorization (to be redesigned, §10 #28); local
+                         backup/recovery (#29); release signing (#27); data
+                         residency (#6).
 PHASE 1.4 / 1.5:        Phase 1.4 NOT CLOSED. Phase 1.5 NOT STARTED.
-LAST UPDATED:           2026-09-24 (final security review)
+LAST UPDATED:           2026-09-24 (authentication removed)
 ```
 
 ---
@@ -226,15 +223,15 @@ DONE** (docs/10), **implementation NOT STARTED**.
 ### Security
 | Feature | Status |
 |---|---|
-| Authentication | **Local (device) authentication DONE, tested — Phase 1.4, pending closure** (6-digit PIN, PBKDF2 verifier in Keystore-backed storage, first-run Admin setup, per-user lockout, session persistence/logout). Cloud identity: NOT STARTED, TBD. Creating non-Admin users in-app: NOT STARTED (user management, unscheduled). PIN recovery: NOT STARTED |
-| RBAC (3 roles) | Schema/matrix: DONE (docs/04 §3). **Navigation-level: DONE, tested — Phase 1.4, pending closure** (route guard + Admin-only `More` entries). Action-level enforcement: comes with each feature phase. Server-side (RLS): NOT STARTED |
-| Navigation shell | **DONE, tested — Phase 1.4, pending closure** (Home · Visits · Referrals · Reports · More; all five are stubs) |
+| Authentication | **None — REMOVED (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. There is no login, PIN, session, or user switching in the app. Cloud identity: NOT STARTED |
+| RBAC (3 roles) | Schema/matrix: DONE (docs/04 §3); roles stored in `users.role`. App-level enforcement: **none** — the Phase 1.4 role-gated navigation was removed together with authentication (there is no current user). Action-level and server-side (RLS) enforcement: NOT STARTED |
+| Navigation shell | **DONE, tested** (Home · Visits · Referrals · Reports · More; all five are stubs). The app starts directly in the shell |
 | Encrypted local database | **DONE, tested, verified in the built APK** (Phase 1.2) |
 | Secure key storage | **DONE, tested** (Android Keystore via `flutter_secure_storage`, Phase 1.2). Hardened: `resetOnError` off everywhere; DB key in its own namespace; never regenerated over an existing database (`f27d85b`) |
 | Cloud security (RLS, TLS) | Architecture: DONE. Implementation: NOT STARTED (cloud/sync phase not yet scheduled) |
-| Audit log | Schema: DONE. **Security events: written to `audit_log`, tested** (security hardening, `f27d85b`; pending journal for events before the database opens). Business-row write path (INSERT/UPDATE/SOFT_DELETE for business tables): NOT STARTED |
+| Audit log | Schema: DONE. No writer exists: the security-event writer was removed together with authentication (2026-09-24). Business-row write path (INSERT/UPDATE/SOFT_DELETE for business tables): NOT STARTED |
 | Soft delete/archive | Schema: DONE, tested (Phase 1.2) |
-| Backup/recovery | **Encrypted Recovery Package (Admin export, verified import) + Admin Recovery Code + DB-key fail-safe: DONE, tested, NOT device-verified** (`f27d85b`, docs/31). Android platform backup and device transfer disabled. Cloud backup: NOT STARTED |
+| Backup/recovery | **No in-app backup or recovery.** The Encrypted Recovery Package and the Admin Recovery Code were removed together with authentication (2026-09-24); backup/recovery will be redesigned with the new authentication (§10 #29). **Retained:** the database-key fail-safe (a key is never silently deleted or regenerated over an existing database), and Android platform backup / device transfer stay disabled. Cloud backup: NOT STARTED |
 
 ### Sync
 | Feature | Status |
@@ -257,7 +254,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| **Phase 1.4** | **IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION APPROVAL (not closed)** — verification: PASS WITH FIXES | Local PIN authentication (Option A, no schema change), first-run Admin setup, secure session, RBAC read model, route guards, role-gated 5-destination shell. After verification fixes: 165/165 tests, analyze clean, APK builds, schema byte-identical to Phase 1.3. **Then security hardening (`f27d85b`, docs/31):** database-key fail-safe, Admin Recovery Code, Encrypted Recovery Package, platform backup disabled, KDF versioning, security audit. 246/246 tests; still no schema change; not device-verified. **Final security review (docs/31 §20):** service-level authorization, atomic crash-safe restore and other fixes; 321/321 tests; checklist docs/32. | 2026-09-23 | `30d89f5`, `cbb225b` (planning/analysis), `b797ac3`, `09f4b0b` (code), `4fe2e06` (docs), `b11abf2` (verification fixes), `0162ff3` (verification docs), `bffba3d` (security analysis), `f27d85b` (security hardening), hardening docs commit (§12) | docs/27–31 |
+| **Phase 1.4** | **AUTHENTICATION REMOVED (2026-09-24) — NOT CLOSED** | Delivered and retained: the 5-destination navigation shell, the database-key fail-safe, Android backup/device-transfer exclusions. **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** History (no longer in the code): local PIN authentication, RBAC read model, route guards, Admin Recovery Code, Encrypted Recovery Package, security audit and their reviews (docs/27–34). After removal: 97/97 tests, analyze clean, APK builds, schema unchanged. | 2026-09-23/24 | `30d89f5`, `cbb225b`, `b797ac3`, `09f4b0b`, `4fe2e06`, `b11abf2`, `0162ff3`, `bffba3d`, `f27d85b`, `f75b7e0`, `07e6807` (history); removal commit (§12) | docs/27–34 (history) |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
@@ -324,18 +321,19 @@ the disagreement is corrected here — never silently.
 | Disease Master seed count: **37** (11 Defects + 8 Deficiencies + 9 Diseases + 9 Developmental Delay) | **USER-DECIDED**, DONE, seeded & tested (Phase 1.3, commit `30d01ff`). The earlier "29" figure is superseded — see docs/04 §9 item 12-style correction, recorded in §10 R7 below |
 | Code 30 ("Others (Specify)") — official catch-all, seeded now, no clinical meaning invented, requires user-supplied specification when selected | **USER-DECIDED**, DONE, seeded & tested (Phase 1.3) |
 | Schema changes after the freeze require an explicit, approved, numbered amendment | **USER-DECIDED** (Phase 0.6 approval condition 9) |
-| Authentication = Option A: device-local credential verifier in `SecureKeyStore`, keyed by `users.id`; **no credential column/table, no migration** | **USER-DECIDED** (Phase 1.4 approval), implemented `b797ac3` |
-| Auth behind an `AuthRepository` abstraction (identity → credential → session → RBAC → audit kept separate) | **USER-DECIDED**, implemented |
-| Credential = 6-digit numeric PIN; raw PIN never stored or logged | **USER-DECIDED**, implemented and tested |
-| PIN verifier = PBKDF2-HMAC-SHA256 (`pointycastle`), 210,000 iterations, 16-byte per-credential salt — below OWASP's current 600,000, deliberate and documented (docs/27 §0.1) | **CONFIRMED** at implementation (parameters chosen within the approved "slow KDF, not a fast hash" decision) |
-| Bootstrap = first-run Admin setup; no seeded/default credential | **USER-DECIDED**, implemented |
-| No cloud auth, no credential sync, no biometrics in Phase 1.4 | **USER-DECIDED** |
+| Authentication = Option A: device-local credential verifier in `SecureKeyStore`, keyed by `users.id`; **no credential column/table, no migration** | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| Auth behind an `AuthRepository` abstraction (identity → credential → session → RBAC → audit kept separate) | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| Credential = 6-digit numeric PIN; raw PIN never stored or logged | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| PIN verifier = PBKDF2-HMAC-SHA256 (`pointycastle`), 210,000 iterations, 16-byte per-credential salt — below OWASP's current 600,000, deliberate and documented (docs/27 §0.1) | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| Bootstrap = first-run Admin setup; no seeded/default credential | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| No cloud auth, no credential sync, no biometrics in Phase 1.4 | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
 | Runtime-created `users.id` values are RFC 4122 UUIDv4 (docs/04 §0) | **CONFIRMED**, implemented `09f4b0b` |
-| KDF = PBKDF2-HMAC-SHA256, 210,000 iterations, 16-byte salt, 32-byte key — **approved for now**; raise only after a real-device benchmark; verifiers versioned and re-hashed after login | **USER-DECIDED** (security hardening), implemented `f27d85b` |
-| PIN recovery = Admin Recovery Code (128-bit, shown once, single-use, rate-limited, audited; resets the PIN only, never touches the database or its key) | **USER-DECIDED**, implemented `f27d85b` |
-| Database-key recovery = local Encrypted Recovery Package (database stays encrypted; its key AES-256-GCM-wrapped under HKDF of a separate Backup Recovery Key) | **USER-DECIDED**, implemented `f27d85b` |
-| Backup policy = **controlled encrypted backup**: Android platform backup and device-to-device transfer disabled; the app's own package is the backup | **USER-DECIDED**, implemented `f27d85b` |
-| The database key is never silently deleted, never regenerated over an existing database, and a missing key is never treated as a first launch | **USER-DECIDED** (mandatory fix), implemented `f27d85b` |
+| KDF = PBKDF2-HMAC-SHA256, 210,000 iterations, 16-byte salt, 32-byte key — **approved for now**; raise only after a real-device benchmark; verifiers versioned and re-hashed after login | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| PIN recovery = Admin Recovery Code (128-bit, shown once, single-use, rate-limited, audited; resets the PIN only, never touches the database or its key) | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| Database-key recovery = local Encrypted Recovery Package (database stays encrypted; its key AES-256-GCM-wrapped under HKDF of a separate Backup Recovery Key) | **SUPERSEDED (2026-09-24)** — authentication removed; historical only |
+| Android platform backup and device-to-device transfer disabled | **USER-DECIDED**, implemented `f27d85b`, retained. (The app's own recovery package, which this decision paired it with, was removed together with authentication on 2026-09-24.) |
+| The database key is never silently deleted, never regenerated over an existing database, and a missing key is never treated as a first launch | **USER-DECIDED** (mandatory fix), implemented `f27d85b`, retained |
+| **Authentication removed**: The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Nothing of the old implementation is kept as code to restore | **USER-DECIDED**, 2026-09-24 |
 
 ---
 
@@ -391,15 +389,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | 7 | Is Aadhaar collection officially required for AWC screening? | AWC form phase (not yet scheduled) — field stays reserved/unused until answered | Phase 0.6 |
 | 8 | `S.I` register abbreviation — confirmed meaning? | OCR alias table population (not yet scheduled). **Per Phase 0.6 approval condition 2, this must never be assumed or seeded without confirmation.** | Phase 0.6 |
 | 9 | `Carries`/`Caries` register abbreviation — confirmed as Dental Caries? | Same as above | Phase 0.6 |
-| 14 | Session inactivity re-lock — docs/08 recommends PIN re-entry after inactivity on shared devices; the duration is an undecided policy, so none was implemented. | Hardening before rollout | Phase 1.4 implementation, 2026-09-23 |
-| 15 | In-app creation of Medical Officer / Team Member accounts (user management) — no phase number assigned. Until then only the first-run Admin can log in on a device. | Multi-user use on a real device | Phase 1.4 implementation, 2026-09-23 |
-| 16 | **KDF iteration count** — **approved for now at 210,000** (security hardening). Raising it (e.g. to OWASP's 600,000) waits for an on-device benchmark and a latency budget (docs/30 §6). Raising it is only a policy change: verifiers are versioned and re-hashed after login (`f27d85b`). | Real-device benchmark | Phase 1.4 implementation; re-decided 2026-09-24 |
-| 17 | Cross-device propagation of user deactivation and role changes | Depends on the unscheduled sync phase (§10 item 6 / docs/07) | Phase 1.4 analysis (docs/28 §6), 2026-09-23 |
-| 22 | **Real-device verification of security hardening**: run the checklist **docs/32 (A–Z)**. Includes the document picker, `FLAG_SECURE`, keyboard and clipboard, backup and device-transfer exclusions (per OEM), real Keystore failures, restore and power loss during restore on a second phone, and KDF timing. Nothing has run on a phone yet. | **Before real child/health data** | Security hardening, 2026-09-24 |
-| 23 | **Custody of recovery secrets**: who holds the Admin Recovery Code and the Backup Recovery Key, where, and how they are reissued. Operational; the app cannot decide it. | **Before real child/health data** | docs/30 §14 #4 |
-| 25 | **Where recovery packages may be kept** (Downloads, USB, a cloud drive app, …): a custody and data-residency question (#6). Packages are encrypted, but the choice of location is policy. | **Before real child/health data** | Security hardening, 2026-09-24 |
-| 26 | Security-hardening backlog (docs/31 §15): clean-up of preserved databases/keys; file-picker request lost if Android recreates the screen; Hindi localization. (Service-level Admin check, code-entry screenshot block and leftover temp files were fixed in the final security review, docs/31 §20.) | Hardening backlog | Security hardening, 2026-09-24 |
 | 27 | **Release signing**: the release APK is signed with the Android debug key (Flutter template default). A production signing key, its custody, and the signing config are needed; moving test phones to a properly signed build requires an uninstall (test data is lost, since there is no platform backup). Found while preparing device validation (docs/33 P10). | **Before real child/health data** | Device-validation preparation, 2026-09-24 |
+| 28 | **Authentication and authorization redesign.** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. The new design must cover identity, credentials, session and inactivity lock, user management, role-based access, recovery and audit. | **Before real child/health data** | Authentication removal, 2026-09-24 |
+| 29 | **Local backup/recovery redesign.** The app currently has no backup or recovery; the previous one was removed together with authentication. Custody of any recovery secret and where backups may be kept (#6) belong to this decision. | **Before real child/health data** | Authentication removal, 2026-09-24 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -423,6 +415,11 @@ Phase 1.1 and reaffirmed at every phase since.
 | R16 | (was active #21) No disaster-recovery path | **Encrypted Recovery Package implemented**: export plus verified, confirmed, non-destructive import; Admin access restored with the Backup Recovery Key. Device verification pending (#22). | `f27d85b`, 2026-09-24 |
 | R17 | (was active #24) Separate recovery secrets | **Approved**: Admin Recovery Code and Backup Recovery Key stay separate; enforced by tests. | Final security review instruction, 2026-09-24 |
 | R18 | Final security review findings (docs/31 §20) | **Fixed with regression tests:** (1) export, backup-key creation, and recovery-code replace/confirm now check the Admin session and PIN **inside the service**, not only in the UI; (2) import refused over a database in use; (3) restore is an all-or-nothing transaction, rolled back on failure and at start-up after a crash; (4) staging/export writes could hang on a full disk; (5) `FLAG_SECURE` nesting bug, code-entry screens unprotected, clipboard/keyboard exposure; (6) audit replay duplicates, events lost during a flush, no details allowlist; (7) leftover temp files. Not device-verified (#22). | Final security review, 2026-09-24 |
+| R19 | (was active #14, #15, #16, #17, #22, #23, #25, #26) Inactivity re-lock; user management; KDF iteration count; cross-device deactivation; real-device security verification; custody of recovery secrets; where recovery packages may be kept; security-hardening backlog | **Superseded by the removal of authentication** (2026-09-24). Real-device testing of the removed implementation is permanently stopped (docs/33 records Groups A–C and the stopped Group D). The underlying questions belong to the redesign (#28, #29). | Authentication removal decision, 2026-09-24 |
+
+R9–R12 and R16–R18 describe decisions about the removed Phase 1.4
+authentication and recovery implementation. They are kept as history only;
+none of that code exists any more.
 
 ---
 
@@ -437,8 +434,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | Schema drift (undocumented deviation from the frozen DDL) | Would undermine the "frozen schema" guarantee everything else depends on | Phase 0.6 approval condition 9 requires a controlled, approved amendment for any change; this Master Plan's §13 rules require re-verification against the frozen doc every phase | **Mitigated by process** |
 | Source-plan data quality (visit-date transposition bug, enrolment mismatches — docs/17) | Naive import logic would silently corrupt planned visit dates | Documented derivation rule (sheet + S.No, weekday cross-check) exists and is scoped for Phase 1.6; not yet implemented | **Active, understood, not yet built** |
 | Future government format changes (Job Aid revision, new referral facility types) | Could require new Disease Master rows or referral destinations | Both are versioned/configuration data, not enum values baked into code — additive by design | **Low, mitigated by design** |
-| Sole Admin forgets PIN — no in-app recovery in Phase 1.4 (§10 #13) | Recovering means clearing app data, which loses local data | No business data exists yet; a recovery path must exist before real data entry | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA PRODUCTION USE** (not blocking Phase 1.4 closure) |
-| Local credential strength — 210,000 PBKDF2 iterations (below OWASP's current 600,000), not yet benchmarked on a device (§10 #16) | Lower resistance if a stored verifier is extracted from a compromised device | Keystore-backed storage, per-credential salt; count embedded per verifier so it can be raised without migration | **Active, documented trade-off** |
+| **No authentication or access control in the app** (removed 2026-09-24) | Once features store data, anyone holding an unlocked phone with the app can read and change it | No real child/health data until authentication is redesigned and implemented (§10 #28); the database remains encrypted at rest with a Keystore-protected key | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
+| **No in-app backup/recovery** (removed 2026-09-24) | Loss of the phone, or of the database key, loses all local data | No real data until #29 is decided and implemented; the database-key fail-safe still prevents *silent* key loss | **Active — BLOCKER BEFORE REAL CHILD/HEALTH DATA** |
+| Sole Admin forgets PIN; local credential strength (Phase 1.4) | — | — | **Superseded** — authentication removed (2026-09-24) |
 | Silent loss of the database key (default `resetOnError: true`, then a new key generated over the existing database) | Permanent, unannounced loss of all local data | **Fixed in `f27d85b`** (R14); regression-tested with real encrypted files. Real Keystore failures not yet exercised on a device (#22) | **Mitigated (device verification pending)** |
 | Real-disk encryption tests are I/O-timing sensitive (observed 0–24 s for one test with no code change) | Spurious timeouts under parallel CPU load | Explicit 2-minute timeout on the two real-disk tests (Phase 1.4, assertions unchanged — docs/29 §12) | **Mitigated** |
 | Two count discrepancies of the same class both found and resolved (24→28; Disease Master 29→37) | Suggests summary/prose sections in early docs are more error-prone than the underlying DDL/source tables | Direct re-enumeration against source, not summary prose, is now the standing practice for any count claim (this document follows it throughout) | **Resolved both instances; process fix applied going forward — watch for a third instance in any future summary figure** |
@@ -469,7 +467,9 @@ Phase 1.1 and reaffirmed at every phase since.
 | Security decision analysis | `bffba3d` | docs/30 (analysis/proposal) | 2026-09-24 |
 | Security hardening (code) | `f27d85b` | Database-key fail-safe, Admin Recovery Code, Encrypted Recovery Package, platform backup disabled, KDF versioning, security audit | 2026-09-24 |
 | Security hardening (docs) | `f75b7e0` | Report, decision outcomes, Master Plan | 2026-09-24 |
-| Final security review | the commit that adds docs/32 (see `git log`) | Service-level authorization, atomic crash-safe restore, full-disk hang, screen/keyboard/clipboard, audit replay, leftovers; tests; docs/31 §20, docs/32 | 2026-09-24 |
+| Final security review | `07e6807` | Service-level authorization, atomic crash-safe restore, full-disk hang, screen/keyboard/clipboard, audit replay, leftovers; tests; docs/31 §20, docs/32 | 2026-09-24 |
+| Device validation (docs) | `24ce578`, `83af343`, `6b40cec`, `95b3281`, `fb5b403`, `56bb449` | Operator guide, validation report, Groups A–C results on one phone | 2026-09-24 |
+| **Authentication removal** | the commit that removes `lib/features/auth` (see `git log`) | The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished. Also removed: RBAC read model, user repository, recovery package/backup/restore, security audit writer, `pointycastle` | 2026-09-24 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -555,7 +555,27 @@ treat this section as a substitute for either document.
   two-step pattern (Claude implements + reports, user reviews + approves)
   used for every phase so far.
 
-### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (IMPLEMENTED — NOT CLOSED)
+### Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (AUTHENTICATION REMOVED — NOT CLOSED)
+
+> **The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.** Removed on 2026-09-24 by explicit decision,
+> together with everything built on it:
+> - login and first-run Admin setup, PINs, the KDF, lockout and sessions;
+> - route guards and RBAC gating;
+> - the user repository;
+> - the Admin Recovery Code;
+> - the Encrypted Recovery Package with backup, restore and the security
+>   audit writer.
+>
+> **Retained:**
+> - the 5-destination navigation shell (the app starts directly in it);
+> - the database-key fail-safe;
+> - Android backup/device-transfer exclusions.
+>
+> Real-device testing of the removed implementation is permanently stopped
+> (docs/33).
+>
+> The rest of this section is **history**: it describes what was built,
+> not the current code.
 
 **Plan and final decisions:** [27_PHASE_1_4_PLAN.md](27_PHASE_1_4_PLAN.md) §0.
 **Analysis:** [28_AUTHENTICATION_ARCHITECTURE_DECISION.md](28_AUTHENTICATION_ARCHITECTURE_DECISION.md).
@@ -628,6 +648,13 @@ treat this section as a substitute for either document.
   Real-device checklist: [32_REAL_DEVICE_SECURITY_TEST_CHECKLIST.md](32_REAL_DEVICE_SECURITY_TEST_CHECKLIST.md).
   Still no schema change and no new dependency. **Not verified on a real
   device.**
+- **Real-device validation (2026-09-24, docs/33):** Groups A–C were run
+  on one phone, and Group D was stopped. Testing is permanently stopped,
+  because the implementation was removed.
+- **Authentication removal (2026-09-24):** see the note at the top of this
+  section.
+  - After removal: 97/97 tests, `flutter analyze` clean, APK builds.
+  - Schema unchanged (28 tables, `schemaVersion` 1).
 - **Phase 1.4 NOT CLOSED. Phase 1.5 not started.**
 
 ---
@@ -649,6 +676,7 @@ builds. Full production readiness requires, at minimum:
 - [ ] Report correctness validated against real department expectations
 - [ ] OCR verification workflow used and validated with real register photos
       (once the register-type open question is resolved)
+- [ ] Authentication redesigned and implemented (removed on 2026-09-24; §10 #28)
 - [ ] Permissions/RBAC enforced in the running app, not just in the schema
 - [ ] Test coverage extends past the database layer into features/UI
 - [ ] On-device verification performed (still outstanding since Phase 1.1 —

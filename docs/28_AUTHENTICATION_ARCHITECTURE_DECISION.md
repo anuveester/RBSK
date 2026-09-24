@@ -1,5 +1,12 @@
 # Authentication Architecture Decision
 
+> **HISTORICAL — REMOVED IMPLEMENTATION (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
+> This document describes the removed implementation (and, where relevant,
+> the backup/recovery features removed with it). None of the code it
+> describes is part of the current application, and this document is not a
+> plan for restoring it. Current status:
+> [00_PROJECT_MASTER_PLAN.md](00_PROJECT_MASTER_PLAN.md) §0.
+
 > **Decision outcome (2026-09-23):** Option A was approved together with the
 > recommendations in §17: an `AuthRepository` abstraction, a slow KDF, a
 > 6-digit PIN, and first-run Admin setup. The final decisions and exact

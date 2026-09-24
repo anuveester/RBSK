@@ -1,5 +1,14 @@
 # Phone Test Guide (for the person holding the phone)
 
+> **HISTORICAL — REMOVED IMPLEMENTATION (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
+> This document describes the removed implementation (and, where relevant,
+> the backup/recovery features removed with it). None of the code it
+> describes is part of the current application, and this document is not a
+> plan for restoring it. Current status:
+> [00_PROJECT_MASTER_PLAN.md](00_PROJECT_MASTER_PLAN.md) §0.
+>
+> **Real-device testing with this document is permanently stopped.**
+
 This guide checks, on a real Android phone, that the app's security works
 the way it was designed. You do not need to be a developer. Everything is
 done with normal phone actions.

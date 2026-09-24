@@ -1,5 +1,12 @@
 # Phase 1.4 — Auth + RBAC Scaffolding + Navigation Shell (Implementation Plan)
 
+> **HISTORICAL — REMOVED IMPLEMENTATION (2026-09-24).** The Phase 1.4 authentication implementation was intentionally removed. Authentication will be redesigned and implemented from scratch after the complete functional application is finished.
+> This document describes the removed implementation (and, where relevant,
+> the backup/recovery features removed with it). None of the code it
+> describes is part of the current application, and this document is not a
+> plan for restoring it. Current status:
+> [00_PROJECT_MASTER_PLAN.md](00_PROJECT_MASTER_PLAN.md) §0.
+
 **Status: IMPLEMENTED (commits `b797ac3`, `09f4b0b`; verification fixes
 `b11abf2`), independent verification completed, awaiting your closure
 approval. NOT closed.** Report:

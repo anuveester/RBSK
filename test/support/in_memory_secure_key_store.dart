@@ -1,8 +1,8 @@
 import 'package:referredline/data/local/database_connection.dart';
 
 /// Test stand-in for the Android Keystore-backed store. [values] is exposed
-/// so tests can inspect exactly what was persisted, e.g. to prove a raw PIN
-/// never lands in storage.
+/// so tests can inspect exactly what was persisted, e.g. to prove a database
+/// key was never replaced.
 ///
 /// [failReads] / [failWritesWhere] simulate the platform store failing (as
 /// `FlutterSecureStorageKeyStore` reports it: a

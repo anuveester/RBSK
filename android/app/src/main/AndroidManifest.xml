@@ -1,11 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!--
-      Android platform backup is disabled on purpose (docs/30 §10, approved
-      "controlled encrypted backup"). The app's own encrypted recovery
-      package is the only intended backup. Platform backup would copy the
-      encrypted database and secure-storage files but never the Keystore
-      keys, producing copies that cannot be decrypted, and would send child
-      health data off the phone outside the app's control.
+      Android platform backup and device-to-device transfer are disabled on
+      purpose. Platform backup would copy the encrypted database and the
+      secure-storage files but never the Android Keystore keys, producing
+      copies that cannot be decrypted, and would send child health data off
+      the phone outside the app's control. The app currently has no backup
+      feature of its own; one will be designed later together with the new
+      authentication.
       - allowBackup="false": cloud backup and adb backup (all API levels).
       - dataExtractionRules: Android 12+ also needs explicit exclusions for
         device-to-device transfer, which allowBackup="false" does not stop

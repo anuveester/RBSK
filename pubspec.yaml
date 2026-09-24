@@ -40,12 +40,6 @@ dependencies:
   # in source, never in plain SharedPreferences).
   flutter_secure_storage: ^11.2.0
 
-  # --- Phase 1.4: local credential verifier ---
-  # PBKDF2-HMAC-SHA256 for deriving the PIN verifier (a slow KDF, not a fast
-  # hash). Pure Dart — no second native build step. See
-  # docs/27_PHASE_1_4_PLAN.md §0.1 for why this package and these parameters.
-  pointycastle: ^4.0.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
