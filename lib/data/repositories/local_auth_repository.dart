@@ -242,6 +242,64 @@ class LocalAuthRepository implements AuthRepository {
     );
   }
 
+  // --- Authorization for privileged operations ------------------------------
+
+  @override
+  Future<AuthSession> requireAdminSession({String operation = 'admin'}) async {
+    final AuthSession? session;
+    try {
+      session = await currentSession();
+    } on SecureStorageUnavailableException {
+      throw const SecureStorageFailure();
+    }
+    if (session == null) {
+      await _denied(operation, 'noSession', null);
+      throw const NoActiveSessionFailure();
+    }
+    if (session.role != AppRole.ADMIN) {
+      await _denied(operation, 'notAdmin', session.userId);
+      throw const NotAuthorizedFailure();
+    }
+    return session;
+  }
+
+  @override
+  Future<AuthSession> reauthenticateAdmin({
+    required String pin,
+    String operation = 'admin',
+  }) async {
+    final session = await requireAdminSession(operation: operation);
+    final lockedFor = await _lockout.checkLockout(session.userId);
+    if (lockedFor != null) {
+      await _denied(operation, 'lockedOut', session.userId);
+      throw AccountLockedFailure(lockedFor);
+    }
+    final String? verifier;
+    try {
+      verifier = await _store.read(_credentialKey(session.userId));
+    } on SecureStorageUnavailableException {
+      throw const SecureStorageFailure();
+    }
+    final valid =
+        verifier != null && await verifyCredentialInBackground(pin, verifier);
+    if (!valid) {
+      await _lockout.recordFailure(session.userId);
+      await _denied(operation, 'wrongPin', session.userId);
+      throw const InvalidCredentialsFailure();
+    }
+    await _lockout.recordSuccess(session.userId);
+    return session;
+  }
+
+  Future<void> _denied(String operation, String reason, String? actor) =>
+      _audit.record(
+        SecurityEvent(
+          SecurityEventType.privilegedActionDenied,
+          actorUserId: actor,
+          details: {'operation': operation, 'reason': reason},
+        ),
+      );
+
   // --- Admin Recovery Code ----------------------------------------------------
 
   @override
@@ -264,11 +322,19 @@ class LocalAuthRepository implements AuthRepository {
     if (record == null || record.acknowledged) {
       return;
     }
+    // Only the code's own Admin, logged in right now, can say it is written
+    // down; otherwise "confirmed" could hide a code nobody recorded.
+    final session = await requireAdminSession(operation: 'confirmRecoveryCode');
+    if (session.userId != record.userId) {
+      await _denied('confirmRecoveryCode', 'notCodeOwner', session.userId);
+      throw const NotAuthorizedFailure();
+    }
     await _guardStorage(() => _recovery.write(record.copyWith(acknowledged: true)));
     await _audit.record(
       SecurityEvent(
         SecurityEventType.adminRecoveryCodeConfirmed,
         subjectUserId: record.userId,
+        actorUserId: session.userId,
       ),
     );
   }
@@ -353,37 +419,17 @@ class LocalAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> confirmAdminPin({
-    required String adminUserId,
-    required String pin,
-  }) async {
-    final lockedFor = await _lockout.checkLockout(adminUserId);
-    if (lockedFor != null) {
-      throw AccountLockedFailure(lockedFor);
-    }
-    final user = await _activeAdmin(adminUserId);
-    final verifier = await _store.read(_credentialKey(user.id));
-    final valid =
-        verifier != null && await verifyCredentialInBackground(pin, verifier);
-    if (!valid) {
-      await _lockout.recordFailure(user.id);
-      throw const InvalidCredentialsFailure();
-    }
-    await _lockout.recordSuccess(user.id);
-  }
-
-  @override
-  Future<String> createNewRecoveryCode({
-    required String adminUserId,
-    required String currentPin,
-  }) async {
-    await confirmAdminPin(adminUserId: adminUserId, pin: currentPin);
+  Future<String> createNewRecoveryCode({required String currentPin}) async {
+    final session = await reauthenticateAdmin(
+      pin: currentPin,
+      operation: 'createRecoveryCode',
+    );
     final code = SecretCode.generate(SecretCodeKind.adminRecovery);
     final verifier = await _derive(code.canonical);
     await _guardStorage(
       () => _recovery.write(
         AdminRecoveryRecord(
-          userId: adminUserId,
+          userId: session.userId,
           verifier: verifier,
           createdAt: _now(),
           acknowledged: false,
@@ -393,8 +439,8 @@ class LocalAuthRepository implements AuthRepository {
     await _audit.record(
       SecurityEvent(
         SecurityEventType.adminRecoveryCodeCreated,
-        subjectUserId: adminUserId,
-        actorUserId: adminUserId,
+        subjectUserId: session.userId,
+        actorUserId: session.userId,
         details: {'trigger': 'replacedByAdmin'},
       ),
     );

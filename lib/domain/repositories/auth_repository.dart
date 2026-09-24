@@ -36,11 +36,28 @@ abstract interface class AuthRepository {
   /// longer exists / is no longer active.
   Future<AuthSession?> currentSession();
 
+  // --- Authorization for privileged operations ---
+
+  /// The current session, re-checked against the `users` row, if it belongs
+  /// to an active Admin. Throws `NoActiveSessionFailure` if nobody is logged
+  /// in and `NotAuthorizedFailure` otherwise. Every Admin-only operation
+  /// calls this itself; it never trusts a user id passed in by the caller.
+  /// [operation] is a short, non-secret label for the audit trail.
+  Future<AuthSession> requireAdminSession({String operation});
+
+  /// [requireAdminSession] plus a fresh check of that Admin's PIN (counted
+  /// by the lockout). Used before operations that hand out secrets or data.
+  Future<AuthSession> reauthenticateAdmin({
+    required String pin,
+    String operation,
+  });
+
   // --- Admin Recovery Code (docs/30 R1) ---
 
   Future<AdminRecoveryStatus> adminRecoveryStatus();
 
-  /// The Admin confirmed the current code is written down.
+  /// The logged-in Admin confirmed that their current code is written down.
+  /// Throws `NotAuthorizedFailure` unless the session is the code's Admin.
   Future<void> confirmRecoveryCodeRecorded();
 
   /// Resets the Admin's PIN with the Admin Recovery Code. The code is used
@@ -50,15 +67,10 @@ abstract interface class AuthRepository {
     required String newPin,
   });
 
-  /// Replaces the Admin Recovery Code (the old one stops working). Requires
-  /// the Admin's current PIN. Returns the new code for one-time display.
-  Future<String> createNewRecoveryCode({
-    required String adminUserId,
-    required String currentPin,
-  });
-
-  /// Re-checks an Admin's PIN before a sensitive action. Throws on failure.
-  Future<void> confirmAdminPin({required String adminUserId, required String pin});
+  /// Replaces the Admin Recovery Code (the old one stops working) for the
+  /// logged-in Admin, after re-checking their PIN. Returns the new code for
+  /// one-time display.
+  Future<String> createNewRecoveryCode({required String currentPin});
 
   // --- After a restore (docs/30 R5) ---
 

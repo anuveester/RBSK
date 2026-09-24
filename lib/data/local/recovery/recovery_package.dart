@@ -45,6 +45,10 @@ enum RecoveryPackageError {
   authenticationFailed,
   databaseIntegrityFailed,
   databaseDoesNotOpen,
+
+  /// The database inside could not be written out on this phone (usually
+  /// not enough free space). The package itself may be fine.
+  couldNotSave,
 }
 
 class RecoveryPackageException implements Exception {
@@ -251,17 +255,21 @@ Future<void> writeRecoveryPackage({
     ),
   );
 
-  final sink = output.openWrite();
+  // RandomAccessFile rather than an IOSink: a write error (e.g. a full
+  // disk) then fails the await directly. An IOSink can report it only
+  // asynchronously, leaving the caller waiting forever.
+  final raf = await output.open(mode: FileMode.write);
   try {
-    sink
-      ..add(aad)
-      ..add(_u32(payload.length))
-      ..add(payload)
-      ..add(_u64(dbLength));
-    await sink.addStream(databaseSnapshot.openRead());
-    await sink.flush();
+    await raf.writeFrom(aad);
+    await raf.writeFrom(_u32(payload.length));
+    await raf.writeFrom(payload);
+    await raf.writeFrom(_u64(dbLength));
+    await for (final chunk in databaseSnapshot.openRead()) {
+      await raf.writeFrom(chunk);
+    }
+    await raf.flush();
   } finally {
-    await sink.close();
+    await raf.close();
   }
 }
 
@@ -447,7 +455,9 @@ Future<OpenedRecoveryPackage> openRecoveryPackage(
 
   final digest = SHA256Digest();
   try {
-    final sink = databaseOutput.openWrite();
+    // RandomAccessFile so that a write error fails here (see
+    // writeRecoveryPackage).
+    final raf = await databaseOutput.open(mode: FileMode.write);
     try {
       await for (final chunk in package.openRead(
         layout.dbOffset,
@@ -455,17 +465,19 @@ Future<OpenedRecoveryPackage> openRecoveryPackage(
       )) {
         final bytes = Uint8List.fromList(chunk);
         digest.update(bytes, 0, bytes.length);
-        sink.add(bytes);
+        await raf.writeFrom(bytes);
       }
-      await sink.flush();
+      await raf.flush();
     } finally {
-      await sink.close();
+      await raf.close();
     }
   } on FileSystemException {
+    // Reading the package already succeeded (its layout was checked), so a
+    // failure here is writing the staged copy: most often a full disk.
     if (await databaseOutput.exists()) {
       await databaseOutput.delete();
     }
-    throw const RecoveryPackageException(RecoveryPackageError.malformed);
+    throw const RecoveryPackageException(RecoveryPackageError.couldNotSave);
   }
   final actualHash = Uint8List(digest.digestSize);
   digest.doFinal(actualHash, 0);

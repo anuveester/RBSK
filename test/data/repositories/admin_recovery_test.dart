@@ -352,18 +352,12 @@ void main() {
   group('replacing the code (More → Admin Recovery Code)', () {
     test('needs the current PIN; the old code then stops working', () async {
       final issued = await _setup(h);
-      final adminId = issued.session.userId;
 
       expect(
-        await _failureOf(
-          h.repo().createNewRecoveryCode(adminUserId: adminId, currentPin: '000000'),
-        ),
+        await _failureOf(h.repo().createNewRecoveryCode(currentPin: '000000')),
         isA<InvalidCredentialsFailure>(),
       );
-      final replacement = await h.repo().createNewRecoveryCode(
-        adminUserId: adminId,
-        currentPin: _pin,
-      );
+      final replacement = await h.repo().createNewRecoveryCode(currentPin: _pin);
 
       expect(
         await _failureOf(
@@ -385,11 +379,11 @@ void main() {
       await Seeds(h.db).user(id: 'mo', role: AppRole.MEDICAL_OFFICER);
       h.store.values[credentialVerifierStorageKey('mo')] =
           deriveCredentialVerifier(_pin, policy: _fast);
+      await h.repo().logout();
+      await h.repo().login(userId: 'mo', pin: _pin);
 
       expect(
-        await _failureOf(
-          h.repo().createNewRecoveryCode(adminUserId: 'mo', currentPin: _pin),
-        ),
+        await _failureOf(h.repo().createNewRecoveryCode(currentPin: _pin)),
         isA<NotAuthorizedFailure>(),
       );
     });

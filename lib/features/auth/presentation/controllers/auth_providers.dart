@@ -1,13 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:referredline/core/platform/recovery_file_gateway.dart';
-import 'package:referredline/data/local/database_connection.dart';
 import 'package:referredline/data/local/database_provider.dart';
-import 'package:referredline/data/local/recovery/backup_key_store.dart';
-import 'package:referredline/data/local/recovery/database_recovery_service.dart';
+import 'package:referredline/data/local/recovery/recovery_providers.dart';
 import 'package:referredline/data/local/security/security_audit.dart';
 import 'package:referredline/data/local/security/security_providers.dart';
 import 'package:referredline/data/repositories/drift_user_repository.dart';
@@ -17,12 +11,13 @@ import 'package:referredline/domain/entities/auth_recovery.dart';
 import 'package:referredline/domain/repositories/auth_repository.dart';
 import 'package:referredline/domain/repositories/user_repository.dart';
 
-/// General secure storage (credentials, sessions, lockout, recovery-code
-/// and backup-key verifiers). Android Keystore-backed, and never resets
-/// itself on error — see [FlutterSecureStorageKeyStore.general].
-final secureKeyStoreProvider = Provider<SecureKeyStore>(
-  (ref) => const FlutterSecureStorageKeyStore.general(),
-);
+export 'package:referredline/data/local/recovery/recovery_providers.dart'
+    show
+        backupKeyStoreProvider,
+        databaseRecoveryServiceProvider,
+        recoveryWorkDirectoryProvider;
+export 'package:referredline/data/local/security/security_providers.dart'
+    show secureKeyStoreProvider;
 
 final userRepositoryProvider = FutureProvider<UserRepository>((ref) async {
   final db = await ref.watch(appDatabaseProvider.future);
@@ -37,10 +32,6 @@ final securityAuditProvider = FutureProvider<SecurityEventSink>((ref) async {
     fallback: ref.watch(securityEventJournalProvider),
   );
 });
-
-final backupKeyStoreProvider = Provider<BackupKeyStore>(
-  (ref) => BackupKeyStore(ref.watch(secureKeyStoreProvider)),
-);
 
 /// The single wiring point for [AuthRepository] — swapping
 /// `LocalAuthRepository` for a future cloud-backed implementation
@@ -81,24 +72,4 @@ final adminCanLogInProvider = FutureProvider<bool>((ref) async {
 
 final recoveryFileGatewayProvider = Provider<RecoveryFileGateway>(
   (ref) => const AndroidRecoveryFileGateway(),
-);
-
-/// Working folder for packages on their way in or out. In the cache
-/// directory, which platform backup never includes; files are removed after
-/// each operation.
-final recoveryWorkDirectoryProvider = Provider<Future<Directory> Function()>(
-  (ref) => () async {
-    final dir = await getTemporaryDirectory();
-    return Directory(p.join(dir.path, 'recovery'));
-  },
-);
-
-final databaseRecoveryServiceProvider = Provider<DatabaseRecoveryService>(
-  (ref) => DatabaseRecoveryService(
-    keyManager: ref.watch(databaseKeyManagerProvider),
-    backupKeys: ref.watch(backupKeyStoreProvider),
-    databaseFileLocator: () => databaseFile(),
-    workDirectory: ref.watch(recoveryWorkDirectoryProvider),
-    preOpenAudit: ref.watch(securityEventJournalProvider),
-  ),
 );

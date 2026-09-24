@@ -16,7 +16,7 @@
 > | 5. Database-key fail-safe (R3) | **APPROVED (as a mandatory fix) + IMPLEMENTED.** |
 > | 6. Android backup policy | **APPROVED: "controlled encrypted backup". IMPLEMENTED** as policy 6 (1 + 4): platform backup and device-to-device transfer disabled; the app's own encrypted recovery package is the backup. |
 > | 7. Disaster recovery (R5) | **APPROVED + IMPLEMENTED:** Encrypted Recovery Package. |
-> | 8. Separate secrets | **IMPLEMENTED AS PROPOSED** (Admin Recovery Code ≠ Backup Recovery Key). The approval did not address this point explicitly; **please confirm.** |
+> | 8. Separate secrets | **APPROVED + IMPLEMENTED** (Admin Recovery Code ≠ Backup Recovery Key); approved in the final security review instruction, 2026-09-24, and enforced by tests (docs/31 §20.7). |
 > | 9. Inactivity re-lock | **OPEN** — not implemented. |
 > | 10. Where the work goes | **DECIDED:** security hardening within Phase 1.4 scope. |
 > | 11. Phase 1.4 closure | **OPEN** — awaiting your review. |

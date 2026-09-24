@@ -48,10 +48,8 @@ class _RecoveryCodeScreenState extends ConsumerState<RecoveryCodeScreen> {
     });
     try {
       final repository = await ref.read(authRepositoryProvider.future);
-      final code = await repository.createNewRecoveryCode(
-        adminUserId: adminId,
-        currentPin: pin,
-      );
+      // The repository checks the session and the PIN itself.
+      final code = await repository.createNewRecoveryCode(currentPin: pin);
       if (mounted) {
         setState(() => _newCode = code);
       }

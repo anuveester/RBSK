@@ -25,10 +25,11 @@ PHASE STATUS:           IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION
                          b11abf2.
 LAST COMPLETED PHASE:   Phase 1.3 — Reference/Configuration Seed + Read
                          Layer (APPROVED / CLOSED, unchanged by Phase 1.4).
-CURRENT TASK:           None — security hardening implemented (commit
-                         f27d85b; report docs/31), awaiting your review
-NEXT APPROVAL REQUIRED: Review of docs/31; confirm the separate-secrets
-                         design (§10 #24); Phase 1.4 closure decision
+CURRENT TASK:           None — final security review done (fixes +
+                         tests; docs/31 §20; device checklist docs/32),
+                         awaiting your review
+NEXT APPROVAL REQUIRED: Review of docs/31 §20; run docs/32 on real
+                         phones; Phase 1.4 closure decision
 BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA (not Phase 1.4
                          closure): real-device test campaign incl. recovery,
                          backup/restore and KDF benchmark (§10 #22); custody
@@ -36,7 +37,7 @@ BLOCKERS:               BEFORE REAL CHILD/HEALTH DATA (not Phase 1.4
                          (#25); inactivity re-lock (#14); user management
                          (#15). Full list: docs/31 §16.
 PHASE 1.4 / 1.5:        Phase 1.4 NOT CLOSED. Phase 1.5 NOT STARTED.
-LAST UPDATED:           2026-09-24 (security hardening implemented)
+LAST UPDATED:           2026-09-24 (final security review)
 ```
 
 ---
@@ -254,7 +255,7 @@ DONE** (docs/10), **implementation NOT STARTED**.
 | **Phase 1.2** | DONE, approved & CLOSED | Frozen v1.0 schema (28 tables) in Drift, encrypted local storage, migration infra, 52 tests | 2026-09-23 | `6dabedc`, `09e872c` | docs/24 |
 | **Doc correction** | DONE, approved | Fixed 24→28 table count and sqlcipher_flutter_libs→sqlite3mc references across docs | 2026-09-23 | `1c071f6` | docs/04 §9, docs/05, 08, 21, 22, 24 |
 | **Phase 1.3** | **DONE, approved & CLOSED** | Idempotent seed data (financial year, Disease Master, referral config, staff) + minimal repository/entity read layer. Independently verified (PASS, zero defects) before closure. | 2026-09-23 | `30d01ff`, `397ce88`, `8b357f8` | docs/25, docs/26 |
-| **Phase 1.4** | **IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION APPROVAL (not closed)** — verification: PASS WITH FIXES | Local PIN authentication (Option A, no schema change), first-run Admin setup, secure session, RBAC read model, route guards, role-gated 5-destination shell. After verification fixes: 165/165 tests, analyze clean, APK builds, schema byte-identical to Phase 1.3. **Then security hardening (`f27d85b`, docs/31):** database-key fail-safe, Admin Recovery Code, Encrypted Recovery Package, platform backup disabled, KDF versioning, security audit. 246/246 tests; still no schema change; not device-verified. | 2026-09-23 | `30d89f5`, `cbb225b` (planning/analysis), `b797ac3`, `09f4b0b` (code), `4fe2e06` (docs), `b11abf2` (verification fixes), `0162ff3` (verification docs), `bffba3d` (security analysis), `f27d85b` (security hardening), hardening docs commit (§12) | docs/27–31 |
+| **Phase 1.4** | **IMPLEMENTED / AWAITING INDEPENDENT VERIFICATION APPROVAL (not closed)** — verification: PASS WITH FIXES | Local PIN authentication (Option A, no schema change), first-run Admin setup, secure session, RBAC read model, route guards, role-gated 5-destination shell. After verification fixes: 165/165 tests, analyze clean, APK builds, schema byte-identical to Phase 1.3. **Then security hardening (`f27d85b`, docs/31):** database-key fail-safe, Admin Recovery Code, Encrypted Recovery Package, platform backup disabled, KDF versioning, security audit. 246/246 tests; still no schema change; not device-verified. **Final security review (docs/31 §20):** service-level authorization, atomic crash-safe restore and other fixes; 321/321 tests; checklist docs/32. | 2026-09-23 | `30d89f5`, `cbb225b` (planning/analysis), `b797ac3`, `09f4b0b` (code), `4fe2e06` (docs), `b11abf2` (verification fixes), `0162ff3` (verification docs), `bffba3d` (security analysis), `f27d85b` (security hardening), hardening docs commit (§12) | docs/27–31 |
 | Phase 1.5 | PLANNED — NOT YET APPROVED | School/AWC Master CRUD + search | — | — | docs/21 §10 |
 | Phase 1.6 | PLANNED — NOT YET APPROVED | Micro Plan import (staging → confirm, date-derivation rule, row-type classification) | — | — | docs/21 §10, docs/16 §7 |
 | Phase 1.7 | PLANNED — NOT YET APPROVED | Visit plans, special/missed/reschedule, Holiday Calendar | — | — | docs/21 §10 |
@@ -392,11 +393,10 @@ Phase 1.1 and reaffirmed at every phase since.
 | 15 | In-app creation of Medical Officer / Team Member accounts (user management) — no phase number assigned. Until then only the first-run Admin can log in on a device. | Multi-user use on a real device | Phase 1.4 implementation, 2026-09-23 |
 | 16 | **KDF iteration count** — **approved for now at 210,000** (security hardening). Raising it (e.g. to OWASP's 600,000) waits for an on-device benchmark and a latency budget (docs/30 §6). Raising it is only a policy change: verifiers are versioned and re-hashed after login (`f27d85b`). | Real-device benchmark | Phase 1.4 implementation; re-decided 2026-09-24 |
 | 17 | Cross-device propagation of user deactivation and role changes | Depends on the unscheduled sync phase (§10 item 6 / docs/07) | Phase 1.4 analysis (docs/28 §6), 2026-09-23 |
-| 22 | **Real-device verification of security hardening**: document picker save/open, `FLAG_SECURE`, backup and device-transfer exclusions, real Keystore failure behaviour with `resetOnError: false`, restore on a second phone, KDF timing. Nothing has run on a phone yet. | **Before real child/health data** | Security hardening, 2026-09-24 |
+| 22 | **Real-device verification of security hardening**: run the checklist **docs/32 (A–Z)**. Includes the document picker, `FLAG_SECURE`, keyboard and clipboard, backup and device-transfer exclusions (per OEM), real Keystore failures, restore and power loss during restore on a second phone, and KDF timing. Nothing has run on a phone yet. | **Before real child/health data** | Security hardening, 2026-09-24 |
 | 23 | **Custody of recovery secrets**: who holds the Admin Recovery Code and the Backup Recovery Key, where, and how they are reissued. Operational; the app cannot decide it. | **Before real child/health data** | docs/30 §14 #4 |
-| 24 | **Confirm separate secrets**: implemented as proposed (Admin Recovery Code ≠ Backup Recovery Key); the approval did not address this explicitly. | Your confirmation | Security hardening, 2026-09-24 |
 | 25 | **Where recovery packages may be kept** (Downloads, USB, a cloud drive app, …): a custody and data-residency question (#6). Packages are encrypted, but the choice of location is policy. | **Before real child/health data** | Security hardening, 2026-09-24 |
-| 26 | Security-hardening backlog (docs/31 §15): re-check the Admin role inside the export and backup-key service; clean-up of preserved databases/keys; file-picker request lost if Android recreates the screen; no screenshot block on code-entry screens; Hindi localization. | Hardening backlog | Security hardening, 2026-09-24 |
+| 26 | Security-hardening backlog (docs/31 §15): clean-up of preserved databases/keys; file-picker request lost if Android recreates the screen; Hindi localization. (Service-level Admin check, code-entry screenshot block and leftover temp files were fixed in the final security review, docs/31 §20.) | Hardening backlog | Security hardening, 2026-09-24 |
 
 **Resolved (moved here from "active" — resolution recorded, not deleted):**
 
@@ -418,6 +418,8 @@ Phase 1.1 and reaffirmed at every phase since.
 | R14 | (was active #19) Database key silently deleted or regenerated | **Fixed**: `resetOnError: false`, isolated key namespace, key generated only when no database exists, a wrong or missing key fails visibly with nothing changed. | `f27d85b`, 2026-09-24 |
 | R15 | (was active #20) Wrong Argon2 rationale in docs/27 §0.1 and the code comment | **Corrected** in both. | `f27d85b` + docs commit, 2026-09-24 |
 | R16 | (was active #21) No disaster-recovery path | **Encrypted Recovery Package implemented**: export plus verified, confirmed, non-destructive import; Admin access restored with the Backup Recovery Key. Device verification pending (#22). | `f27d85b`, 2026-09-24 |
+| R17 | (was active #24) Separate recovery secrets | **Approved**: Admin Recovery Code and Backup Recovery Key stay separate; enforced by tests. | Final security review instruction, 2026-09-24 |
+| R18 | Final security review findings (docs/31 §20) | **Fixed with regression tests:** (1) export, backup-key creation, and recovery-code replace/confirm now check the Admin session and PIN **inside the service**, not only in the UI; (2) import refused over a database in use; (3) restore is an all-or-nothing transaction, rolled back on failure and at start-up after a crash; (4) staging/export writes could hang on a full disk; (5) `FLAG_SECURE` nesting bug, code-entry screens unprotected, clipboard/keyboard exposure; (6) audit replay duplicates, events lost during a flush, no details allowlist; (7) leftover temp files. Not device-verified (#22). | Final security review, 2026-09-24 |
 
 ---
 
@@ -463,7 +465,8 @@ Phase 1.1 and reaffirmed at every phase since.
 | Phase 1.4 (verification docs) | `0162ff3` | Verification results + documentation corrections | 2026-09-23 |
 | Security decision analysis | `bffba3d` | docs/30 (analysis/proposal) | 2026-09-24 |
 | Security hardening (code) | `f27d85b` | Database-key fail-safe, Admin Recovery Code, Encrypted Recovery Package, platform backup disabled, KDF versioning, security audit | 2026-09-24 |
-| Security hardening (docs) | the commit that adds docs/31 (see `git log`) | Report, decision outcomes, Master Plan | 2026-09-24 |
+| Security hardening (docs) | `f75b7e0` | Report, decision outcomes, Master Plan | 2026-09-24 |
+| Final security review | the commit that adds docs/32 (see `git log`) | Service-level authorization, atomic crash-safe restore, full-disk hang, screen/keyboard/clipboard, audit replay, leftovers; tests; docs/31 §20, docs/32 | 2026-09-24 |
 
 Full detail: `git log`. This table is a summary only, not a replacement.
 
@@ -608,6 +611,20 @@ treat this section as a substitute for either document.
 
   246/246 tests pass, analyze is clean, the APK builds. No schema change,
   no new dependency. **Not verified on a real device.**
+- **Final security review (2026-09-24, docs/31 §20):** genuine gaps found
+  and fixed, each with regression tests shown to fail without the fix:
+  - service-layer Admin authorization for export, backup key and the
+    recovery code;
+  - import refused over data in use;
+  - an atomic, crash-safe restore with start-up resolution;
+  - a full-disk hang;
+  - screenshot, keyboard and clipboard exposure;
+  - audit replay and allowlist;
+  - leftover temp files.
+
+  Real-device checklist: [32_REAL_DEVICE_SECURITY_TEST_CHECKLIST.md](32_REAL_DEVICE_SECURITY_TEST_CHECKLIST.md).
+  Still no schema change and no new dependency. **Not verified on a real
+  device.**
 - **Phase 1.4 NOT CLOSED. Phase 1.5 not started.**
 
 ---

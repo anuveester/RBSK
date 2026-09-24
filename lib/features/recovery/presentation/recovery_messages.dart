@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:referredline/core/platform/recovery_file_gateway.dart';
 import 'package:referredline/core/security/secret_code.dart';
 import 'package:referredline/data/local/database_connection.dart';
@@ -39,7 +41,19 @@ String recoveryErrorMessage(Object error) => switch (error) {
     RecoveryPackageError.databaseDoesNotOpen =>
       'The data inside this backup could not be opened. Nothing on this '
           'phone was changed.',
+    RecoveryPackageError.couldNotSave =>
+      'The backup could not be unpacked on this phone, usually because '
+          'there is not enough free space. Nothing on this phone was '
+          'changed. Free up some space and try again.',
   },
+  DatabaseInUseException() =>
+    'This phone already has data and accounts in use, so a backup cannot '
+        'be restored over it. Nothing on this phone was changed. Restoring '
+        'is for a new phone, or a phone whose data is locked.',
+  FileSystemException() =>
+    'The file could not be written on this phone, usually because there is '
+        'not enough free space. Nothing has been deleted. Free up some space '
+        'and try again.',
   PlaintextDatabaseException() =>
     'The data on this phone is not stored encrypted, so it was not exported. '
         'Please contact your RBSK administrator.',

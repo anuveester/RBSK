@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_database.dart';
 import 'database_connection.dart';
+import 'recovery/recovery_providers.dart';
 import 'security/security_audit.dart';
 import 'security/security_providers.dart';
 
@@ -16,6 +17,10 @@ final databaseKeyManagerProvider = Provider<DatabaseKeyManager>(
 /// (Phase 1.2 instruction §4: "Do not initialize the database from arbitrary
 /// UI widgets. Keep database lifecycle management centralized.").
 ///
+/// Before opening, a restore that was interrupted (crash, power loss) is
+/// finished or undone, so the database is never opened half-restored; if
+/// that cannot be done the open fails and is retried later.
+///
 /// If the database key is unavailable this provider fails with
 /// [DatabaseKeyUnavailableException] — after recording the event — and
 /// nothing is created, replaced or deleted. On a successful open, security
@@ -23,6 +28,10 @@ final databaseKeyManagerProvider = Provider<DatabaseKeyManager>(
 /// `audit_log`.
 final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
   final journal = ref.watch(securityEventJournalProvider);
+  final recovery = ref.watch(databaseRecoveryServiceProvider);
+  await recovery.resolveInterruptedRestore();
+  await ref.read(recoveryLeftoversRemovedProvider.future);
+
   final QueryExecutor executor;
   try {
     executor = await openEncryptedDatabase(

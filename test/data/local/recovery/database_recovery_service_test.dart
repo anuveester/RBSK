@@ -6,76 +6,19 @@ import 'package:referredline/core/errors/failure.dart';
 import 'package:referredline/core/security/crypto_utils.dart';
 import 'package:referredline/core/security/secret_code.dart';
 import 'package:referredline/data/local/app_database.dart';
-import 'package:referredline/data/local/auth/credential_hasher.dart';
 import 'package:referredline/data/local/database_connection.dart';
-import 'package:referredline/data/local/recovery/backup_key_store.dart';
 import 'package:referredline/data/local/recovery/database_recovery_service.dart';
 import 'package:referredline/data/local/recovery/recovery_package.dart';
 import 'package:referredline/data/local/security/security_audit.dart';
-import 'package:referredline/data/repositories/drift_user_repository.dart';
-import 'package:referredline/data/repositories/local_auth_repository.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
-import '../../../support/in_memory_secure_key_store.dart';
+import '../../../support/phone_fixture.dart';
 import '../test_database.dart';
 
 // Synthetic test PINs only.
 const _pin = '846102';
 const _newPin = '290374';
-const _fast = CredentialKdfPolicy(iterations: 10000);
 const _timeout = Timeout(Duration(minutes: 3));
-
-/// One simulated phone: its own files, its own secure stores.
-class _Phone {
-  _Phone(String name)
-    : dir = Directory.systemTemp.createTempSync('rbsk_phone_${name}_');
-
-  final Directory dir;
-  final appKeys = InMemorySecureKeyStore();
-  final dbKeys = InMemorySecureKeyStore();
-
-  String get dbDir => '${dir.path}/db';
-  File get dbFile => File('$dbDir/$databaseFileName');
-  File get journalFile => File('${dir.path}/journal.jsonl');
-
-  DatabaseKeyManager get keyManager => DatabaseKeyManager(store: dbKeys);
-  BackupKeyStore get backupKeys => BackupKeyStore(appKeys);
-  PendingSecurityEventJournal get journal =>
-      PendingSecurityEventJournal(() async => journalFile);
-
-  DatabaseRecoveryService service() => DatabaseRecoveryService(
-    keyManager: keyManager,
-    backupKeys: backupKeys,
-    databaseFileLocator: () async => dbFile,
-    workDirectory: () async => Directory('${dir.path}/work'),
-    preOpenAudit: journal,
-  );
-
-  Future<AppDatabase> open() async {
-    Directory(dbDir).createSync(recursive: true);
-    return AppDatabase(
-      await openEncryptedDatabase(
-        keyManager: keyManager,
-        overrideDirectoryPath: dbDir,
-        overrideTempDirectoryPath: dir.path,
-      ),
-    );
-  }
-
-  LocalAuthRepository auth(AppDatabase db) => LocalAuthRepository(
-    userRepository: DriftUserRepository(db),
-    keyStore: appKeys,
-    audit: DatabaseSecurityAuditLog(db, fallback: journal),
-    backupKeys: backupKeys,
-    kdfPolicy: _fast,
-  );
-
-  void delete() {
-    if (dir.existsSync()) {
-      dir.deleteSync(recursive: true);
-    }
-  }
-}
 
 bool _contains(List<int> haystack, List<int> needle) {
   outer:
@@ -91,8 +34,8 @@ bool _contains(List<int> haystack, List<int> needle) {
 }
 
 void main() {
-  late _Phone a;
-  late _Phone b;
+  late Phone a;
+  late Phone b;
 
   // Phone A as a real phone would be: an Admin, some data, a backup key.
   late String adminId;
@@ -100,8 +43,8 @@ void main() {
   late File package;
 
   setUp(() async {
-    a = _Phone('a');
-    b = _Phone('b');
+    a = Phone('a');
+    b = Phone('b');
 
     final db = await a.open();
     final issued = await a.auth(db).setupBootstrapAdmin(
@@ -120,12 +63,14 @@ void main() {
           ),
         );
     backupKey = await a.service().createBackupKey(
-      actorUserId: adminId,
+      auth: a.auth(db),
+      currentPin: _pin,
       audit: DatabaseSecurityAuditLog(db),
     );
     package = await a.service().createPackage(
       db,
-      actorUserId: adminId,
+      auth: a.auth(db),
+      currentPin: _pin,
       audit: DatabaseSecurityAuditLog(db),
     );
     await db.close();
@@ -175,7 +120,7 @@ void main() {
     }, timeout: _timeout);
 
     test('a database that is not encrypted is never exported', () async {
-      final c = _Phone('plain');
+      final c = Phone('plain');
       addTearDown(c.delete);
       Directory(c.dbDir).createSync(recursive: true);
       // A plain (unencrypted) SQLite file where the database should be.
@@ -185,11 +130,13 @@ void main() {
       await c.backupKeys.write(BackupKeyMaterial.derive(backupKey));
       final db = openTestDatabase();
       addTearDown(db.close);
+      await c.auth(db).setupBootstrapAdmin(displayName: 'Admin C', pin: _pin);
 
       await expectLater(
         c.service().createPackage(
           db,
-          actorUserId: 'x',
+          auth: c.auth(db),
+          currentPin: _pin,
           audit: DatabaseSecurityAuditLog(db),
         ),
         throwsA(isA<PlaintextDatabaseException>()),
@@ -202,14 +149,16 @@ void main() {
     }, timeout: _timeout);
 
     test('export without a backup key set up is refused', () async {
-      final c = _Phone('c');
+      final c = Phone('c');
       addTearDown(c.delete);
       final db = await c.open();
       addTearDown(db.close);
+      await c.auth(db).setupBootstrapAdmin(displayName: 'Admin C', pin: _pin);
       await expectLater(
         c.service().createPackage(
           db,
-          actorUserId: 'x',
+          auth: c.auth(db),
+          currentPin: _pin,
           audit: DatabaseSecurityAuditLog(db),
         ),
         throwsA(isA<NoBackupKeyException>()),

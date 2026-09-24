@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:referredline/core/auth/pin_policy.dart';
 import 'package:referredline/core/errors/failure.dart';
+import 'package:referredline/core/platform/recovery_file_gateway.dart';
 import 'package:referredline/core/router/routes.dart';
 import 'package:referredline/core/security/secret_code.dart';
 
@@ -10,6 +11,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/auth_providers.dart';
 import '../widgets/pin_field.dart';
 import '../widgets/recovery_code_display.dart';
+import '../widgets/secret_code_field.dart';
 
 /// Reset a forgotten Admin PIN with the Admin Recovery Code (docs/30 R1).
 /// Works offline. Only the PIN is reset — the data and its encryption key
@@ -31,7 +33,15 @@ class _PinRecoveryScreenState extends ConsumerState<PinRecoveryScreen> {
   bool _codeNotSaved = false;
 
   @override
+  void initState() {
+    super.initState();
+    // The Admin Recovery Code is typed here.
+    SecureScreen.acquire();
+  }
+
+  @override
   void dispose() {
+    SecureScreen.release();
     _code.dispose();
     _pin.dispose();
     _confirmPin.dispose();
@@ -150,20 +160,12 @@ class _PinRecoveryScreenState extends ConsumerState<PinRecoveryScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            TextField(
+            SecretCodeField(
               key: const ValueKey('recover-code'),
               controller: _code,
               enabled: !_busy,
-              autocorrect: false,
-              enableSuggestions: false,
-              // Tells the keyboard not to learn or suggest what is typed.
-              keyboardType: TextInputType.visiblePassword,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                labelText: 'Admin Recovery Code',
-                hintText: 'AR-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXX',
-                border: OutlineInputBorder(),
-              ),
+              label: 'Admin Recovery Code',
+              hint: 'AR-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXX',
             ),
             const SizedBox(height: 16),
             PinField(

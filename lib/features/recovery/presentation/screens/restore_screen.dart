@@ -20,6 +20,7 @@ import 'package:referredline/features/auth/presentation/controllers/auth_control
 import 'package:referredline/features/auth/presentation/controllers/auth_providers.dart';
 import 'package:referredline/features/auth/presentation/widgets/pin_field.dart';
 import 'package:referredline/features/auth/presentation/widgets/recovery_code_display.dart';
+import 'package:referredline/features/auth/presentation/widgets/secret_code_field.dart';
 
 import '../recovery_messages.dart';
 
@@ -65,6 +66,8 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
   void initState() {
     super.initState();
     _service = ref.read(databaseRecoveryServiceProvider);
+    // The Backup Recovery Key is typed on this screen at several steps.
+    SecureScreen.acquire();
   }
 
   @override
@@ -79,7 +82,7 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
       // ignore: unawaited_futures
       _deleteIfPresent(file);
     }
-    setSecureScreen(false);
+    SecureScreen.release();
     _backupKey.dispose();
     _pin.dispose();
     _confirmPin.dispose();
@@ -146,7 +149,6 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
       _summary = summary;
       _step = _Step.enterKey;
     });
-    await setSecureScreen(true);
   });
 
   Future<void> _verify() => _run(() async {
@@ -167,16 +169,31 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
     if (db != null) {
       await closeAppDatabase(db);
     }
-    await ref
-        .read(databaseRecoveryServiceProvider)
-        .install(verified, confirmedByUser: true);
-    _verified = null;
+    try {
+      await ref
+          .read(databaseRecoveryServiceProvider)
+          .install(verified, confirmedByUser: true);
+    } catch (_) {
+      // Rolled back; a verified restore is single-use, so the key must be
+      // checked again before another attempt.
+      if (mounted) {
+        setState(() {
+          _step = _Step.enterKey;
+          _understood = false;
+        });
+      }
+      rethrow;
+    } finally {
+      // Success or failure, the connection closed above must be replaced:
+      // after a failed (rolled-back) restore the previous data opens again.
+      _verified = null;
+      ref.invalidate(appDatabaseProvider);
+    }
     final file = _packageFile;
     if (file != null && await file.exists()) {
       await file.delete();
     }
     _packageFile = null;
-    ref.invalidate(appDatabaseProvider);
     await ref.read(authControllerProvider.future);
     setState(() => _step = _Step.adminAccess);
   });
@@ -338,20 +355,12 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
       const SizedBox(height: 16),
       const Text('Enter the Backup Recovery Key (it starts with BK).'),
       const SizedBox(height: 8),
-      TextField(
+      SecretCodeField(
         key: const ValueKey('restore-backup-key'),
         controller: _backupKey,
         enabled: !_busy,
-        autocorrect: false,
-        enableSuggestions: false,
-        // Tells the keyboard not to learn or suggest what is typed.
-        keyboardType: TextInputType.visiblePassword,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
-          labelText: 'Backup Recovery Key',
-          hintText: 'BK-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXX',
-          border: OutlineInputBorder(),
-        ),
+        label: 'Backup Recovery Key',
+        hint: 'BK-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXX',
       ),
       const SizedBox(height: 24),
       FilledButton(
@@ -413,19 +422,11 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
           onTap: _busy ? null : () => setState(() => _adminId = admin.id),
         ),
       const SizedBox(height: 16),
-      TextField(
+      SecretCodeField(
         key: const ValueKey('restore-admin-backup-key'),
         controller: _backupKey,
         enabled: !_busy,
-        autocorrect: false,
-        enableSuggestions: false,
-        // Tells the keyboard not to learn or suggest what is typed.
-        keyboardType: TextInputType.visiblePassword,
-        textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
-          labelText: 'Backup Recovery Key',
-          border: OutlineInputBorder(),
-        ),
+        label: 'Backup Recovery Key',
       ),
       const SizedBox(height: 16),
       PinField(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:referredline/core/platform/recovery_file_gateway.dart';
 import 'package:referredline/core/security/secret_code.dart';
 
+import 'secret_code_field.dart';
+
 /// Shows a recovery secret exactly once, then asks the person to confirm
 /// they wrote it down (tick + type its last group) before continuing.
 /// Screenshots and screen recording are blocked while it is visible.
@@ -30,12 +32,12 @@ class _RecoveryCodeDisplayState extends State<RecoveryCodeDisplay> {
   @override
   void initState() {
     super.initState();
-    setSecureScreen(true);
+    SecureScreen.acquire();
   }
 
   @override
   void dispose() {
-    setSecureScreen(false);
+    SecureScreen.release();
     _check.dispose();
     super.dispose();
   }
@@ -122,6 +124,9 @@ class _RecoveryCodeDisplayState extends State<RecoveryCodeDisplay> {
           enabled: !_busy,
           autocorrect: false,
           enableSuggestions: false,
+          enableIMEPersonalizedLearning: false,
+          keyboardType: TextInputType.visiblePassword,
+          contextMenuBuilder: secretFieldContextMenu,
           textCapitalization: TextCapitalization.characters,
           onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(

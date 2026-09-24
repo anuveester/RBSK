@@ -55,14 +55,43 @@ class AndroidRecoveryFileGateway implements RecoveryFileGateway {
 }
 
 /// Stops screenshots and screen recording (Android `FLAG_SECURE`) while a
-/// recovery secret is visible. Silently does nothing where unsupported
-/// (e.g. tests).
-Future<void> setSecureScreen(bool enabled) async {
-  try {
-    await _channel.invokeMethod<void>('setSecureScreen', {'enabled': enabled});
-  } on MissingPluginException {
-    // Not running on Android.
-  } on PlatformException {
-    // Best effort.
+/// recovery secret is visible or being typed.
+///
+/// Reference-counted: every screen that needs protection takes a lease in
+/// `initState` and releases it in `dispose`, and the flag stays on until the
+/// last lease is released. A plain on/off switch would let an inner widget
+/// (e.g. the one-time code display inside the restore screen) turn the
+/// protection off while the outer screen still shows a secret.
+class SecureScreen {
+  SecureScreen._();
+
+  static int _leases = 0;
+
+  static void acquire() {
+    if (_leases++ == 0) {
+      _apply(true);
+    }
+  }
+
+  static void release() {
+    if (_leases == 0) {
+      return;
+    }
+    if (--_leases == 0) {
+      _apply(false);
+    }
+  }
+
+  /// Number of screens currently holding protection (for tests).
+  static int get activeLeases => _leases;
+
+  static Future<void> _apply(bool enabled) async {
+    try {
+      await _channel.invokeMethod<void>('setSecureScreen', {'enabled': enabled});
+    } on MissingPluginException {
+      // Not running on Android.
+    } on PlatformException {
+      // Best effort.
+    }
   }
 }

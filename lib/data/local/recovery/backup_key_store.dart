@@ -43,6 +43,44 @@ class BackupKeyStore {
     }
   }
 
+  static const String _rollbackSlot = '$storageKey.restore-rollback';
+  static const String _nothing = '-';
+
+  /// Before a restore replaces the material: remembers what is stored now.
+  Future<void> saveRollbackPoint() async {
+    final current = await _store.read(storageKey);
+    final value = (current == null || current.isEmpty) ? _nothing : current;
+    await _store.write(_rollbackSlot, value);
+    if (await _store.read(_rollbackSlot) != value) {
+      throw const SecureStorageUnavailableException('write');
+    }
+  }
+
+  /// Puts back what [saveRollbackPoint] remembered. Does nothing if no
+  /// rollback point was saved.
+  Future<void> rollBackToSavedPoint() async {
+    final saved = await _store.read(_rollbackSlot);
+    if (saved == null || saved.isEmpty) {
+      return;
+    }
+    final value = saved == _nothing ? '' : saved;
+    if ((await _store.read(storageKey) ?? '') == value) {
+      return; // Never changed.
+    }
+    await _store.write(storageKey, value);
+    if (await _store.read(storageKey) != value) {
+      throw const SecureStorageUnavailableException('write');
+    }
+  }
+
+  Future<void> clearRollbackPoint() async {
+    try {
+      await _store.write(_rollbackSlot, '');
+    } on SecureStorageUnavailableException {
+      // Harmless leftover: it is overwritten before the next restore.
+    }
+  }
+
   Future<void> write(BackupKeyMaterial material) => _store.write(
     storageKey,
     jsonEncode({

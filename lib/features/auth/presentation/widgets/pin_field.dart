@@ -28,6 +28,7 @@ class PinField extends StatelessWidget {
       obscureText: true,
       enableSuggestions: false,
       autocorrect: false,
+      enableIMEPersonalizedLearning: false,
       keyboardType: TextInputType.number,
       maxLength: PinPolicy.length,
       inputFormatters: [

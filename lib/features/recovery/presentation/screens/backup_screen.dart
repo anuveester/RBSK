@@ -85,12 +85,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       return;
     }
     await _run(() async {
+      // The service checks the session and the PIN itself.
       final auth = await ref.read(authRepositoryProvider.future);
-      await auth.confirmAdminPin(adminUserId: adminId, pin: pin);
       final audit = await ref.read(securityAuditProvider.future);
       final key = await ref
           .read(databaseRecoveryServiceProvider)
-          .createBackupKey(actorUserId: adminId, audit: audit);
+          .createBackupKey(auth: auth, currentPin: pin, audit: audit);
       setState(() => _newKey = key.formatted);
     });
   }
@@ -122,16 +122,27 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         ],
       ),
     );
-    if (go != true) {
+    if (go != true || !mounted) {
+      return;
+    }
+    final pin = await askForCurrentPin(
+      context,
+      title: 'Confirm it is you',
+      message: 'Enter your PIN to create the encrypted backup.',
+    );
+    if (pin == null) {
       return;
     }
     await _run(() async {
       final service = ref.read(databaseRecoveryServiceProvider);
       final db = await ref.read(appDatabaseProvider.future);
+      final auth = await ref.read(authRepositoryProvider.future);
       final audit = await ref.read(securityAuditProvider.future);
+      // The service checks the session and the PIN itself.
       final package = await service.createPackage(
         db,
-        actorUserId: adminId,
+        auth: auth,
+        currentPin: pin,
         audit: audit,
       );
       try {

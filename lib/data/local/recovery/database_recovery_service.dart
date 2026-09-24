@@ -1,15 +1,18 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:referredline/core/security/secret_code.dart';
 import 'package:referredline/core/utils/id_generator.dart';
 import 'package:referredline/data/local/app_database.dart';
 import 'package:referredline/data/local/database_connection.dart';
 import 'package:referredline/data/local/security/security_audit.dart';
+import 'package:referredline/domain/repositories/auth_repository.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 import 'backup_key_store.dart';
 import 'recovery_package.dart';
+import 'restore_transaction.dart';
 
 /// The Backup Recovery Key is not set up on this phone yet.
 class NoBackupKeyException implements Exception {
@@ -19,6 +22,13 @@ class NoBackupKeyException implements Exception {
 /// The database file is not encrypted, so it must not be exported.
 class PlaintextDatabaseException implements Exception {
   const PlaintextDatabaseException();
+}
+
+/// The database on this phone opens and has accounts: it is in use, so a
+/// restore (which needs no login) must not replace it. Restoring is only for
+/// a phone with no accounts yet, or one whose data is locked.
+class DatabaseInUseException implements Exception {
+  const DatabaseInUseException();
 }
 
 /// Why a restore is happening; decides which audit events are written.
@@ -58,11 +68,17 @@ class RestoreOutcome {
 /// Controlled encrypted backup and database recovery (docs/30 R5).
 ///
 /// - **Export** snapshots the database file *as stored* (still encrypted)
-///   while holding a read lock, and wraps it in a recovery package.
+///   while holding a read lock, and wraps it in a recovery package. Only a
+///   logged-in Admin who re-enters their PIN can export or set the Backup
+///   Recovery Key; this service checks that itself through [AuthRepository]
+///   and never trusts a user id passed in by a caller.
 /// - **Import** verifies the package completely (authenticity, integrity,
 ///   and that its key opens its database) before touching anything, and
-///   installs only after explicit confirmation. The database and key already
-///   on the phone are renamed and kept, never deleted or overwritten.
+///   installs only after explicit confirmation, as one all-or-nothing
+///   change ([RestoreTransaction]). It is refused while the database on the
+///   phone is in use ([DatabaseInUseException]). The database and key
+///   already on the phone are renamed and kept, never deleted or
+///   overwritten.
 ///
 /// Neither operation logs or returns secret material.
 class DatabaseRecoveryService {
@@ -73,6 +89,7 @@ class DatabaseRecoveryService {
     required this._workDirectory,
     required this._preOpenAudit,
     DateTime Function()? clock,
+    @visibleForTesting this._beforeRestoreStep,
   }) : _databaseFile = databaseFileLocator,
        _clock = clock ?? DateTime.now;
 
@@ -82,18 +99,34 @@ class DatabaseRecoveryService {
   final Future<Directory> Function() _workDirectory;
   final SecurityEventSink _preOpenAudit;
   final DateTime Function() _clock;
+  final void Function(RestoreStep step)? _beforeRestoreStep;
+
+  late final RestoreTransaction _transaction = RestoreTransaction(
+    keyManager: _keyManager,
+    backupKeys: _backupKeys,
+    databaseFileLocator: _databaseFile,
+    audit: _preOpenAudit,
+    clock: _clock,
+    beforeStep: _beforeRestoreStep,
+  );
 
   // --- Backup key -----------------------------------------------------------
 
   Future<BackupKeyMaterial?> currentBackupKey() => _backupKeys.read();
 
   /// Creates and stores a new Backup Recovery Key, returning it for one-time
-  /// display. Only the derived material is stored. Callers must check the
-  /// Admin's authority first (see `LocalAuthRepository`).
+  /// display. Only the derived material is stored. Requires the logged-in
+  /// Admin's current PIN ([AuthRepository.reauthenticateAdmin]).
   Future<SecretCode> createBackupKey({
-    required String actorUserId,
+    required AuthRepository auth,
+    required String currentPin,
     required SecurityEventSink audit,
   }) async {
+    final session = await auth.reauthenticateAdmin(
+      pin: currentPin,
+      operation: 'createBackupKey',
+    );
+    final actorUserId = session.userId;
     final code = SecretCode.generate(SecretCodeKind.backupRecovery);
     final material = BackupKeyMaterial.derive(code, createdAt: _clock());
     await _backupKeys.write(material);
@@ -111,12 +144,19 @@ class DatabaseRecoveryService {
 
   /// Writes an encrypted recovery package of [db] into the work directory
   /// and returns it. The caller hands it to the user (save/share) and then
-  /// calls [discardExport].
+  /// calls [discardExport]. Requires the logged-in Admin's current PIN
+  /// ([AuthRepository.reauthenticateAdmin]).
   Future<File> createPackage(
     AppDatabase db, {
-    required String actorUserId,
+    required AuthRepository auth,
+    required String currentPin,
     required SecurityEventSink audit,
   }) async {
+    final session = await auth.reauthenticateAdmin(
+      pin: currentPin,
+      operation: 'exportBackup',
+    );
+    final actorUserId = session.userId;
     final material = await _backupKeys.read();
     if (material == null) {
       throw const NoBackupKeyException();
@@ -124,6 +164,7 @@ class DatabaseRecoveryService {
     final dbFile = await _databaseFile();
     final work = await _workDirectory();
     await work.create(recursive: true);
+    await _removeOldExports(work);
     final now = _clock().toUtc();
     final packageId = generateUuidV4();
     final snapshot = File(p.join(work.path, 'export-$packageId.snapshot'));
@@ -196,13 +237,53 @@ class DatabaseRecoveryService {
     }
   }
 
+  /// Exports and snapshots left behind by an export that was interrupted
+  /// (e.g. the app was closed while the save dialog was open).
+  static Future<void> _removeOldExports(Directory work) async {
+    await for (final entity in work.list()) {
+      final name = p.basename(entity.path);
+      if (entity is File &&
+          ((name.startsWith('export-') && name.endsWith('.snapshot')) ||
+              (name.startsWith('rbsk-recovery-') && name.endsWith('.rbskrp')))) {
+        await entity.delete();
+      }
+    }
+  }
+
+  /// Removes everything a recovery operation may have left behind: the work
+  /// folder (package copies, snapshots) and a staged database from an
+  /// unfinished import. Run once at start-up, when no operation can be in
+  /// progress. Leaves a staged database alone while a restore marker exists
+  /// (the restore must be resolved first). Never touches the database.
+  Future<void> removeLeftoverFiles() async {
+    try {
+      final work = await _workDirectory();
+      if (await work.exists()) {
+        await work.delete(recursive: true);
+      }
+      final dbFile = await _databaseFile();
+      final staged = File('${dbFile.path}.restore-staged');
+      if (!await RestoreTransaction.markerFor(dbFile).exists() &&
+          await staged.exists()) {
+        await staged.delete();
+      }
+    } on FileSystemException {
+      // Best effort; tried again at the next start.
+    }
+  }
+
+  /// See [RestoreTransaction.resolveInterrupted].
+  Future<InterruptedRestoreOutcome> resolveInterruptedRestore() =>
+      _transaction.resolveInterrupted();
+
   // --- Import ---------------------------------------------------------------
 
   Future<RecoveryPackageSummary> inspect(File package) =>
       readRecoveryPackageSummary(package);
 
   /// Verifies [package] with [backupKeyText] and stages its database. Throws
-  /// [SecretCodeFormatException] for a mistyped key, or
+  /// [SecretCodeFormatException] for a mistyped key,
+  /// [DatabaseInUseException] if the data on this phone is in use, or
   /// [RecoveryPackageException] for anything wrong with the package. Nothing
   /// on the phone changes.
   Future<VerifiedRestore> verify(
@@ -214,6 +295,7 @@ class DatabaseRecoveryService {
     await _preOpenAudit.record(
       SecurityEvent(_attemptedEvent(context), details: {'context': context.name}),
     );
+    await _refuseIfDatabaseInUse(context);
 
     final dbFile = await _databaseFile();
     await dbFile.parent.create(recursive: true);
@@ -252,10 +334,10 @@ class DatabaseRecoveryService {
   /// Installs a verified package. Requires [confirmedByUser]: the UI must
   /// have shown what will happen and the user must have agreed.
   ///
-  /// Order is chosen so that an interruption never loses anything and can be
-  /// completed by running the restore again: keep the old database, move the
-  /// new one into place, then store its key (the old key is kept by
-  /// [DatabaseKeyManager.installRecoveredKey]).
+  /// All or nothing ([RestoreTransaction]): if any step fails, the database
+  /// and keys that were in use are put back before this throws, and a crash
+  /// part-way is undone at the next start. The previous database is kept
+  /// under another name, never deleted.
   Future<RestoreOutcome> install(
     VerifiedRestore restore, {
     required bool confirmedByUser,
@@ -268,31 +350,25 @@ class DatabaseRecoveryService {
     }
     restore._consumed = true;
 
-    final dbFile = await _databaseFile();
-    String? preservedName;
+    final String? preservedName;
     try {
-      if (await dbFile.exists()) {
-        final stamp = _clock().toUtc().microsecondsSinceEpoch;
-        final preserved = File('${dbFile.path}.preserved-$stamp');
-        await dbFile.rename(preserved.path);
-        final journal = File('${dbFile.path}-journal');
-        if (await journal.exists()) {
-          await journal.rename('${preserved.path}-journal');
-        }
-        preservedName = p.basename(preserved.path);
-      }
-      await restore._stagedDatabase.rename(dbFile.path);
-      await _keyManager.installRecoveredKey(restore._package.databaseKey);
-      await _backupKeys.write(restore._package.backupKeyMaterial);
+      // Checked again here: the phone may have been set up since verify().
+      await _refuseIfDatabaseInUse(restore.context);
+      preservedName = await _transaction.install(
+        staged: restore._stagedDatabase,
+        databaseKey: restore._package.databaseKey,
+        backupKeyMaterial: restore._package.backupKeyMaterial,
+      );
+    } on SimulatedPowerLoss {
+      rethrow;
     } catch (e) {
+      if (await restore._stagedDatabase.exists()) {
+        await restore._stagedDatabase.delete();
+      }
       await _preOpenAudit.record(
         SecurityEvent(
           _failedEvent(restore.context),
-          details: {
-            'context': restore.context.name,
-            'reason': _reasonOf(e),
-            'preservedDatabaseFile': ?preservedName,
-          },
+          details: {'context': restore.context.name, 'reason': _reasonOf(e)},
         ),
       );
       rethrow;
@@ -310,6 +386,60 @@ class DatabaseRecoveryService {
       ),
     );
     return RestoreOutcome(preservedDatabaseFileName: preservedName);
+  }
+
+  /// A restore needs no login, so it must never replace data that is in use:
+  /// a database that opens with the stored key and has at least one account.
+  /// A missing, unreadable or wrong key means the data is locked, which is
+  /// exactly when a restore is allowed.
+  Future<void> _refuseIfDatabaseInUse(RestoreContext context) async {
+    final dbFile = await _databaseFile();
+    if (!await dbFile.exists()) {
+      return;
+    }
+    final String? key;
+    try {
+      key = await _keyManager.readCurrentKey();
+    } on DatabaseKeyUnavailableException {
+      return;
+    }
+    if (key == null || !keyOpensDatabase(dbFile, key)) {
+      return;
+    }
+    if (_hasAccounts(dbFile, key)) {
+      await _preOpenAudit.record(
+        SecurityEvent(
+          _rejectedEvent(context),
+          details: {'context': context.name, 'reason': 'databaseInUse'},
+        ),
+      );
+      throw const DatabaseInUseException();
+    }
+  }
+
+  /// Fails closed: anything but "no users table yet" or a zero count is
+  /// treated as having accounts.
+  static bool _hasAccounts(File file, String key) {
+    final db = sqlite3.sqlite3.open(file.path, mode: sqlite3.OpenMode.readOnly);
+    try {
+      db.execute("PRAGMA key = '${escapeForSqlLiteral(key)}';");
+      final hasTable = db
+          .select(
+            'SELECT count(*) FROM sqlite_master '
+            "WHERE type = 'table' AND name = 'users'",
+          )
+          .single
+          .values
+          .first;
+      if (hasTable == 0) {
+        return false;
+      }
+      return db.select('SELECT count(*) FROM users').single.values.first != 0;
+    } on sqlite3.SqliteException {
+      return true;
+    } finally {
+      db.close();
+    }
   }
 
   /// Removes a staged (verified but not installed) database.
@@ -356,6 +486,8 @@ class DatabaseRecoveryService {
     DatabaseKeyUnavailableException(:final reason) => reason.name,
     NoBackupKeyException() => 'noBackupKey',
     PlaintextDatabaseException() => 'databaseNotEncrypted',
+    DatabaseInUseException() => 'databaseInUse',
+    SecureStorageUnavailableException() => 'secureStorageUnavailable',
     FileSystemException() => 'fileSystemError',
     _ => 'unexpectedError',
   };
