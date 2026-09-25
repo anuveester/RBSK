@@ -104,3 +104,13 @@ Code: `lib/domain/services/micro_plan/micro_plan_import_planner.dart`.
 Real file: 290 distinct institutions (143 schools, 147 AWCs), 61 suggestions,
 345 planned visits, 25 holidays. All "no" → 290 institutions; all "yes" → 229.
 
+## Saving and undo (Phase 1.6 step 2c) [USER-DECIDED 2026-09-25, option A]
+Code: `lib/data/local/import/micro_plan_import_service.dart`.
+- Everything is written in one transaction: all or nothing.
+- One live import per financial year; a second import is refused.
+- Undo is allowed only while no work has started on any visit or holiday of
+  that import (status still PLANNED, date not moved, never edited, no
+  screening, photo or status-history row). It soft-deletes the visits,
+  holidays, and the schools/AWCs the import created that nothing else uses;
+  a removed school's code is released. Then the year can be imported again.
+

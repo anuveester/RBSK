@@ -49,6 +49,27 @@ class BusinessAuditWriter {
     newValues: newValues,
   );
 
+  /// A soft delete (`is_deleted` false → true), plus any other columns that
+  /// changed with it (e.g. a released code) in [otherOld]/[otherNew].
+  Future<void> recordSoftDelete(
+    AppDatabase db, {
+    required String table,
+    required String recordId,
+    Map<String, Object?> otherOld = const {},
+    Map<String, Object?> otherNew = const {},
+  }) {
+    final newValues = {'is_deleted': true, ...otherNew};
+    return _write(
+      db,
+      table: table,
+      recordId: recordId,
+      action: AuditAction.SOFT_DELETE,
+      changedFields: newValues.keys.toList(),
+      oldValues: {'is_deleted': false, ...otherOld},
+      newValues: newValues,
+    );
+  }
+
   Future<void> _write(
     AppDatabase db, {
     required String table,

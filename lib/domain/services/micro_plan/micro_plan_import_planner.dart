@@ -19,9 +19,13 @@ class MicroPlanImportPlanner {
   // Preview
   // ---------------------------------------------------------------------------
 
+  /// [existing]: master records that are not deleted, for matching.
+  /// [reservedSchoolCodes]: code → school name for every school code the
+  /// unique index already holds, deleted rows included.
   MicroPlanImportPreview buildPreview(
     List<ParsedPlanSheet> sheets, {
     List<ExistingInstitution> existing = const [],
+    Map<String, String> reservedSchoolCodes = const {},
   }) {
     final builders = <String, _CandidateBuilder>{};
     final visits = <PlannedVisitDraft>[];
@@ -165,6 +169,8 @@ class MicroPlanImportPlanner {
     }
 
     final existingSchoolCodes = <String, String>{
+      for (final entry in reservedSchoolCodes.entries)
+        _matchText(entry.key): upperText(entry.value) ?? '',
       for (final record in existing)
         if (record.kind == MicroPlanRowKind.school &&
             _matchText(record.code).isNotEmpty)
