@@ -83,3 +83,24 @@ neither the date nor the day is "corrected").
   and the expected per-row results from the real file:
   `python gen_fixture.py <xlsx> ../../test/fixtures/micro_plan/real_plan_2025_26.dart ../../test/fixtures/micro_plan/real_plan_2025_26_expected.dart`
   (staff rows removed; contact names/numbers replaced).
+
+## Import matching (Phase 1.6 step 2b) [USER-DECIDED 2026-09-25]
+Code: `lib/domain/services/micro_plan/micro_plan_import_planner.dart`.
+1. Same name **and** same code (case and extra spaces ignored) = one
+   institution, no question asked (it is the same row repeated each month).
+2. Anything merely similar is a **suggestion** the Medical Officer answers
+   yes/no in the import preview; nothing is merged without a yes:
+   same school code / different name; same school name and category /
+   different code; same AWC code where one name is part of the other
+   (JAKHAURA-1 / JAKHAURA-1+2); same AWC name (not "1+2") / different code.
+3. Same school name with a different category (PS vs UPS) is a different
+   school and is not suggested.
+4. A row without a code gets its own record, flagged for review.
+5. School codes are kept but are not identity. A new school never takes a
+   code already used by another school (unique index): it is left blank with
+   a note, and can be entered later in School Master.
+6. All stored text is in CAPITAL letters.
+
+Real file: 290 distinct institutions (143 schools, 147 AWCs), 61 suggestions,
+345 planned visits, 25 holidays. All "no" → 290 institutions; all "yes" → 229.
+
