@@ -114,3 +114,23 @@ Code: `lib/data/local/import/micro_plan_import_service.dart`.
   holidays, and the schools/AWCs the import created that nothing else uses;
   a removed school's code is released. Then the year can be imported again.
 
+## Reading the .xlsx (Phase 1.6 step 3a)
+Code: `lib/data/local/import/xlsx_micro_plan_reader.dart` (packages `archive`
+and `xml` only; the `excel` package was not used — unmaintained since 2024 and
+pinned to old `archive`/`xml` versions) [USER-DECIDED 2026-09-25].
+- Cell values: shared strings (rich text joined, phonetic runs skipped),
+  inline strings, numbers, booleans, formula cells' cached results.
+- A number is a date when its cell style's number format is a built-in date
+  format (14–22, 45–47) or a custom code containing d/m/y/h/s outside quotes
+  and brackets. 1900 and 1904 date systems are handled.
+- Only the top-left cell of a merged range has a value (Excel keeps stale
+  cached values in covered cells, e.g. the Day column in JULY25).
+- Trailing formatted-but-empty rows are dropped.
+- `tool/micro_plan/xlsx_ref.py` is the same reader in Python; on the real file
+  it agrees with openpyxl on every cell and merged range.
+- Tests use `test/fixtures/micro_plan/real_plan_2025_26_anonymised.xlsx`, made
+  from the real file by `tool/micro_plan/anonymise_xlsx.py` (Excel's own XML
+  kept; staff rows emptied; contact person/number replaced; comments, images
+  and document properties left out), and `edge_cases.xlsx`
+  (`tool/micro_plan/make_edge_xlsx.py`).
+

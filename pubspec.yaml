@@ -45,6 +45,14 @@ dependencies:
   # Backup Recovery Key check character. Pure Dart; no native build step.
   pointycastle: ^4.0.0
 
+  # --- Phase 1.6: Micro Plan import ---
+  # An .xlsx file is a zip of XML parts. The small reader in
+  # lib/data/local/import/xlsx_micro_plan_reader.dart uses only these two
+  # (the `excel` package was not used: unmaintained since 2024 and pinned to
+  # old archive/xml versions).
+  archive: ^4.3.0
+  xml: ^7.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
